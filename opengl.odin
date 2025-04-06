@@ -3,6 +3,12 @@ package main
 import gl "vendor:OpenGL"
 import win "core:sys/windows"
 import glm "core:math/linalg/glsl"
+import "core:bytes"
+
+import "core:image"
+
+import "core:image/png" // since png module has autoload function, don't remove it!
+_ :: png._MAX_IDAT
 
 initOpengl :: proc() {
     majorVersion :: 4
@@ -86,6 +92,10 @@ initOpengl :: proc() {
 
     win.wglSwapIntervalEXT(1) // enable v sync
     // gl.Enable(gl.MULTISAMPLE) // should on by default
+
+    gl.Enable(gl.CULL_FACE)
+    gl.Enable(gl.DEPTH_TEST)
+    gl.DepthFunc(gl.LESS)
 }
 
 clearOpengl :: proc() {
@@ -98,6 +108,11 @@ clearOpengl :: proc() {
 		gl.DeleteBuffers(1, &mesh.ebo)
 		gl.DeleteBuffers(1, &mesh.vbo)
 		gl.DeleteVertexArrays(1, &mesh.vao)
+	}
+
+    
+	for &texture in ctx.textures {
+		gl.DeleteTextures(1, &texture.texture)
 	}
 
 	win.wglMakeCurrent(nil, nil)
@@ -119,13 +134,14 @@ createQaudMesh :: proc() {
     Vertex :: struct {
         pos: glm.vec3,
         col: glm.vec4,
+        tex: glm.vec2,
     }
 
     vertices := []Vertex{
-		{{-0.5, +0.5, 0}, {1.0, 0.0, 0.0, 0.75}},
-		{{-0.5, -0.5, 0}, {1.0, 1.0, 0.0, 0.75}},
-		{{+0.5, -0.5, 0}, {0.0, 1.0, 0.0, 0.75}},
-		{{+0.5, +0.5, 0}, {0.0, 0.0, 1.0, 0.75}},
+		{{-0.5, +0.5, 0}, {1.0, 0.0, 0.0, 0.75}, {0.0, 0.0}},
+		{{-0.5, -0.5, 0}, {1.0, 1.0, 0.0, 0.75}, {0.0, 1.0}},
+		{{+0.5, -0.5, 0}, {0.0, 1.0, 0.0, 0.75}, {1.0, 1.0}},
+		{{+0.5, +0.5, 0}, {0.0, 0.0, 1.0, 0.75}, {1.0, 0.0}},
 	}
 	
 	indices := []u16{
@@ -144,8 +160,10 @@ createQaudMesh :: proc() {
     gl.BufferData(gl.ARRAY_BUFFER, len(vertices) * size_of(vertices[0]), raw_data(vertices), gl.STATIC_DRAW)
     gl.EnableVertexAttribArray(0)
 	gl.EnableVertexAttribArray(1)
+    gl.EnableVertexAttribArray(2)
     gl.VertexAttribPointer(0, 3, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, pos))
 	gl.VertexAttribPointer(1, 4, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, col))
+    gl.VertexAttribPointer(2, 2, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, tex))
 
     gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices) * size_of(indices[0]), raw_data(indices), gl.STATIC_DRAW)
@@ -158,5 +176,41 @@ createQaudMesh :: proc() {
         vao = vao,
         vbo = vbo,
         ebo = ebo,
+        indicesCount = len(indices),
+    }
+}
+
+loadTextures :: proc() {
+    ctx.textures[.DOGGO] = loadTextureFromImage(#load("./res/doggo.png"))
+    ctx.textures[.DOGGO_2] = loadTextureFromImage(#load("./res/doggo_2.png"))
+    ctx.textures[.DOGGO_3] = loadTextureFromImage(#load("./res/doggo_3.png"))
+}
+
+loadTextureFromImage :: proc(imageFileContent: []u8) -> Texture {
+    parsedImage, imageErr := image.load_from_bytes(imageFileContent)
+    assert(imageErr == nil, "Couldn't parse image")
+    defer image.destroy(parsedImage)
+
+    image.alpha_add_if_missing(parsedImage)
+
+    bitmap := bytes.buffer_to_bytes(&parsedImage.pixels)
+
+    texture: u32
+    gl.GenTextures(1, &texture)
+
+    gl.BindTexture(gl.TEXTURE_2D, texture)
+
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(parsedImage.width), i32(parsedImage.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(bitmap))
+    gl.GenerateMipmap(gl.TEXTURE_2D)
+    
+    gl.BindTexture(gl.TEXTURE_2D, 0)
+
+    return Texture {
+        texture = texture,
+        width = parsedImage.width,
+        height = parsedImage.height,
     }
 }

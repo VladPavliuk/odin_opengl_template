@@ -40,7 +40,7 @@ initWindow :: proc() {
 
     rect: win.RECT
     win.GetClientRect(ctx.hwnd, &rect)
-    ctx.windowSize = { int(rect.right - rect.left), int(rect.bottom - rect.top) }
+    ctx.windowSize = { rect.right - rect.left, rect.bottom - rect.top }
 }
 
 toggleBorderlessFullscreen :: proc() {

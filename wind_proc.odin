@@ -21,7 +21,9 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
         case win.VK_F: toggleBorderlessFullscreen()
         }
     case win.WM_LBUTTONUP:
-        
+    
+    // case win.WM_MOVE:
+    //     render()
     case win.WM_SIZE:
         if !ctx.isWindowCreated { break }
 
@@ -30,7 +32,7 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
         rect: win.RECT
         win.GetClientRect(hwnd, &rect)
 
-        ctx.windowSize = { int(rect.right - rect.left), int(rect.bottom - rect.top) }
+        ctx.windowSize = { rect.right - rect.left, rect.bottom - rect.top }
         gl.Viewport(0, 0, i32(ctx.windowSize.x), i32(ctx.windowSize.y))
 
         // NOTE: while resizing we only get resize message, so we can't redraw from main loop, so we do it explicitlly

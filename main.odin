@@ -11,9 +11,8 @@ MeshType :: enum {
 }
 
 Mesh :: struct {
-	vbo: u32,
-	vao: u32,
-	ebo: u32,
+	vbo, vao, ebo: u32,
+	indicesCount: int,
 }
 
 ShaderType :: enum {
@@ -23,6 +22,17 @@ ShaderType :: enum {
 Shader :: struct {
 	program: u32,
 	uniforms: gl.Uniforms,
+}
+
+TextureType :: enum {
+	DOGGO,
+	DOGGO_2,
+	DOGGO_3,
+}
+
+Texture :: struct {
+	texture: u32,
+	width, height: int,
 }
 
 Context :: struct {
@@ -37,10 +47,20 @@ Context :: struct {
 
 	meshes: [MeshType]Mesh,
 	shaders: [ShaderType]Shader,
+	textures: [TextureType]Texture,
+
+	projMat, viewMat: mat4,
 }
 
 ctx: Context = {}
 
+// todo:
+// instancing
+// ui
+// mesh rendering
+// lighting
+// sound
+// pbr
 main :: proc() {
     default_context = context
 
@@ -48,6 +68,8 @@ main :: proc() {
 
 	loadShaders()
 	createQaudMesh()
+	loadTextures()
+	initCamera()
     
     msg: win.MSG
     for msg.message != win.WM_QUIT {
