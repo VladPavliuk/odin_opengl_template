@@ -9,5 +9,10 @@ uniform sampler2D ourTexture;
 
 void main() {
 	//o_color = v_color;
+	vec4 texColor = v_color * texture(ourTexture, v_texCoord);
+
+	if (texColor.a < 0.01)
+        discard;
+
 	o_color = texture(ourTexture, v_texCoord);
 }

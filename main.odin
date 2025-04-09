@@ -6,17 +6,9 @@ import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 fmt :: fmt
 
-MeshType :: enum {
-	QUAD,
-}
-
-Mesh :: struct {
-	vbo, vao, ebo: u32,
-	indicesCount: int,
-}
-
 ShaderType :: enum {
 	QUAD,
+	FONT,
 }
 
 Shader :: struct {
@@ -25,6 +17,7 @@ Shader :: struct {
 }
 
 TextureType :: enum {
+	FONT,
 	DOGGO,
 	DOGGO_2,
 	DOGGO_3,
@@ -49,12 +42,17 @@ Context :: struct {
 	shaders: [ShaderType]Shader,
 	textures: [TextureType]Texture,
 
-	projMat, viewMat: mat4,
+	uiProjMat, projMat, viewMat: mat4,
+
+	font: FontData,
 }
 
 ctx: Context = {}
 
 // todo:
+// sprites
+// text
+// framebuffer
 // instancing
 // ui
 // mesh rendering
@@ -68,7 +66,9 @@ main :: proc() {
 
 	loadShaders()
 	createQaudMesh()
+	createSpriteMesh()
 	loadTextures()
+	loadFont()
 	initCamera()
     
     msg: win.MSG
