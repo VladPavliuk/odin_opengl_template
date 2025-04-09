@@ -2,6 +2,7 @@ package main
 
 import win "core:sys/windows"
 import "core:fmt"
+import "core:mem"
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 fmt :: fmt
@@ -49,9 +50,10 @@ Context :: struct {
 
 ctx: Context = {}
 
+tracker: mem.Tracking_Allocator
+
 // todo:
 // sprites
-// text
 // framebuffer
 // instancing
 // ui
@@ -60,7 +62,12 @@ ctx: Context = {}
 // sound
 // pbr
 main :: proc() {
-    default_context = context
+	when ODIN_DEBUG { 
+		mem.tracking_allocator_init(&tracker, context.allocator)
+		defer mem.tracking_allocator_destroy(&tracker)
+		context.allocator = mem.tracking_allocator(&tracker)
+	}
+	default_context = context 
 
     initWindow()
 
@@ -85,4 +92,27 @@ main :: proc() {
     }
 
 	clearOpengl()
+	clearContext()
+	
+	when ODIN_DEBUG { 
+		for _, leak in tracker.allocation_map {
+			fmt.printf("%v leaked %m\n", leak.location, leak.size)
+		}
+		for bad_free in tracker.bad_free_array {
+			fmt.printf("%v allocation %p was freed badly\n", bad_free.location, bad_free.memory)
+		}
+
+		if tracker.total_memory_allocated - tracker.total_memory_freed > 0 {        
+			fmt.println("Total allocated", tracker.total_memory_allocated)
+			fmt.println("Total freed", tracker.total_memory_freed)
+			fmt.println("Total leaked", tracker.total_memory_allocated - tracker.total_memory_freed)
+		}
+	}
+}
+
+clearContext :: proc() {
+	for _, kerning in ctx.font.kerningTable { delete(kerning) }
+
+	delete(ctx.font.kerningTable)
+    delete(ctx.font.chars)
 }

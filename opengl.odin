@@ -106,6 +106,8 @@ initOpengl :: proc() {
 clearOpengl :: proc() {
     for shader in ctx.shaders {
 		gl.DeleteProgram(shader.program)
+
+        for uniformName in shader.uniforms { delete(uniformName) }
         delete(shader.uniforms)
 	}
 
@@ -114,7 +116,6 @@ clearOpengl :: proc() {
 		gl.DeleteBuffers(1, &mesh.vbo)
 		gl.DeleteVertexArrays(1, &mesh.vao)
 	}
-
     
 	for &texture in ctx.textures {
 		gl.DeleteTextures(1, &texture.texture)
