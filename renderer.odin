@@ -22,7 +22,7 @@ render :: proc() {
 
     h += 0.01
 
-    renderText("Save the DOGGO!", { 0, 0 }, { 0, 0, 0 })
+    renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
 
     win.SwapBuffers(ctx.hdc)
 }

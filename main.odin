@@ -3,6 +3,7 @@ package main
 import win "core:sys/windows"
 import "core:fmt"
 import "core:mem"
+import "core:time"
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 fmt :: fmt
@@ -45,6 +46,7 @@ Context :: struct {
 
 	uiProjMat, projMat, viewMat: mat4,
 
+	timeDelta: f64,
 	font: FontData,
 }
 
@@ -82,6 +84,7 @@ main :: proc() {
     for msg.message != win.WM_QUIT {
         defer free_all(context.temp_allocator)
 
+        beforeFrame := time.tick_now()
         if win.PeekMessageW(&msg, nil, 0, 0, win.PM_REMOVE) {
             win.TranslateMessage(&msg)
             win.DispatchMessageW(&msg)
@@ -89,11 +92,12 @@ main :: proc() {
         }
 
 		render()
+		ctx.timeDelta = time.duration_seconds(time.tick_diff(beforeFrame, time.tick_now()))
     }
 
 	clearOpengl()
 	clearContext()
-	
+
 	when ODIN_DEBUG { 
 		for _, leak in tracker.allocation_map {
 			fmt.printf("%v leaked %m\n", leak.location, leak.size)
