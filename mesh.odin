@@ -2,10 +2,12 @@ package main
 
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
+import "base:runtime"
 
 MeshType :: enum {
 	QUAD,
     SPRITE,
+    TEST_MESH,
 }
 
 Mesh :: struct {
@@ -19,7 +21,7 @@ createSpriteMesh :: proc() {
         tex: glm.vec2,
     }
 
-	indices := []u16{
+	indices := []u32{
 		0, 1, 2,
 		2, 3, 0,
 	}
@@ -53,6 +55,36 @@ createSpriteMesh :: proc() {
     }
 }
 
+createMesh :: proc(vertices: []MeshVertex, indices: []u32) {
+    vao, vbo, ebo: u32
+	gl.GenVertexArrays(1, &vao)
+	gl.GenBuffers(1, &vbo)
+	gl.GenBuffers(1, &ebo)
+
+    gl.BindVertexArray(vao)
+
+    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+    gl.BufferData(gl.ARRAY_BUFFER, len(vertices) * size_of(vertices[0]), raw_data(vertices[:]), gl.STATIC_DRAW)
+    gl.EnableVertexAttribArray(0)
+    gl.EnableVertexAttribArray(1)
+    gl.VertexAttribPointer(0, 3, gl.FLOAT, false, size_of(vertices[0]), offset_of(MeshVertex, pos))
+    gl.VertexAttribPointer(1, 3, gl.FLOAT, false, size_of(vertices[0]), offset_of(MeshVertex, normals))
+
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices) * size_of(indices[0]), raw_data(indices), gl.STATIC_DRAW)
+
+    gl.BindVertexArray(0)
+    gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+
+    ctx.meshes[.TEST_MESH] = {
+        vao = vao,
+        vbo = vbo,
+        ebo = ebo,
+        indicesCount = len(indices),
+    }
+}
+
 createQaudMesh :: proc() {
     Vertex :: struct {
         pos: glm.vec3,
@@ -67,7 +99,7 @@ createQaudMesh :: proc() {
 		{{+0.5, +0.5, 0}, {0.0, 0.0, 1.0, 0.75}, {1.0, 0.0}},
 	}
 	
-	indices := []u16{
+	indices := []u32{
 		0, 1, 2,
 		2, 3, 0,
 	}

@@ -11,6 +11,7 @@ fmt :: fmt
 ShaderType :: enum {
 	QUAD,
 	FONT,
+	MESH,
 }
 
 Shader :: struct {
@@ -79,7 +80,20 @@ main :: proc() {
 	loadTextures()
 	loadFont()
 	initCamera()
+
+	// loadGltfFile("C:/Users/Vlad/Downloads/survival_guitar_backpack/scene.gltf")
+	loadGltfFile("C:\\projects\\odin_opengl_template\\res\\ball\\ball.gltf")
+
+	// buf := gltf2.buffer_slice(data, 0).([][3]f32)
+    // for val, i in buf {
+    //     fmt.printf("Index: %v = %v\n", i, val)
+    // }
+
+
+	//scene := assimp_import_file("C:\\Users\\Vlad\\Downloads\\fdx54mtvuz28-FinalBaseMesh\\FinalBaseMesh.obj", u32(aiPostProcessSteps.Triangulate | aiPostProcessSteps.FlipUVs))
     
+	//processNode(scene.mRootNode, scene)
+
     msg: win.MSG
     for msg.message != win.WM_QUIT {
         defer free_all(context.temp_allocator)

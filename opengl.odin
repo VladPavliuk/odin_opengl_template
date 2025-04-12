@@ -94,6 +94,9 @@ initOpengl :: proc() {
     // gl.Enable(gl.MULTISAMPLE) // should on by default
 
     gl.Enable(gl.CULL_FACE)
+    //gl.CullFace(gl.FRONT)
+    //gl.FrontFace(gl.CW)
+
     gl.Enable(gl.DEPTH_TEST)
     gl.DepthFunc(gl.LESS)
 
@@ -143,6 +146,17 @@ loadShaders :: proc() {
         assert(program_ok)
 
         ctx.shaders[.FONT] = Shader{
+            program = program,
+            uniforms = gl.get_uniforms_from_program(program),
+        }
+            
+    }
+
+    { // mesh
+        program, program_ok := gl.load_shaders_source(#load("./shaders/mesh_vs.glsl"), #load("./shaders/mesh_fs.glsl"))
+        assert(program_ok)
+
+        ctx.shaders[.MESH] = Shader{
             program = program,
             uniforms = gl.get_uniforms_from_program(program),
         }
