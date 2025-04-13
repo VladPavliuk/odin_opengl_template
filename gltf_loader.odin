@@ -69,9 +69,24 @@ processNode :: proc(data: ^gltf2.Data, node: ^gltf2.Node, mesh: ^Mesh2, globalTr
 					positions = buffer
 				}
 			}
+			
+			if primitive.indices != nil {
+				prevVerticesCount := u32(len(mesh.vertices)) // add comment
+			
+				//reserve(&mesh.indices, len(mesh.indices) + len(indices))
+				#partial switch indices in gltf2.buffer_slice(data, primitive.indices.?) {
+					case []u32:
+						for index in indices { append(&mesh.indices, prevVerticesCount + index) }
+						//append(&mesh.indices, ..indices)
+					case []u16:
+						for index in indices { append(&mesh.indices, prevVerticesCount + u32(index)) }
+					case:
+						panic("wrong gltf indices format")
+				}
+			}
 
 			// populate vertices
-			reserve(&mesh.vertices, len(positions))
+			reserve(&mesh.vertices, len(mesh.vertices) + len(positions))
 			for i in 0..<len(positions) {
 				pos := positions[i]
 				append(&mesh.vertices, MeshVertex{
@@ -80,16 +95,6 @@ processNode :: proc(data: ^gltf2.Data, node: ^gltf2.Node, mesh: ^Mesh2, globalTr
 				})
 			}
 
-			if primitive.indices != nil {
-				#partial switch indices in gltf2.buffer_slice(data, primitive.indices.?) {
-					case []u32:
-						append(&mesh.indices, ..indices)
-					case []u16:
-						for index in indices { append(&mesh.indices, u32(index)) }
-					case:
-						panic("wrong gltf indices format")
-				}
-			}
 		}
 	}
 

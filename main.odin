@@ -83,6 +83,7 @@ main :: proc() {
 
 	// loadGltfFile("C:/Users/Vlad/Downloads/survival_guitar_backpack/scene.gltf")
 	loadGltfFile("C:\\projects\\odin_opengl_template\\res\\ball\\ball.gltf")
+	//loadGltfFile("C:/projects/DirectXTemplate/DirectXTemplate/resources/Mars Curiosity Rover.glb")
 
 	// buf := gltf2.buffer_slice(data, 0).([][3]f32)
     // for val, i in buf {

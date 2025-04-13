@@ -98,12 +98,13 @@ renderMesh :: proc() {
     gl.BindVertexArray(ctx.meshes[.TEST_MESH].vao)
     gl.UseProgram(ctx.shaders[.MESH].program)
 
-    @(static)
+    scale: f32= 0.005
 
+    @(static)
     test: f32 = 0
     
-//    model := glm.mat4Translate({ 500, 500, 0 })
-    model := glm.mat4Scale({0.1, 0.1, 0.1})
+    model := glm.mat4Translate({ 0, 0, 0 })
+    model = model * glm.mat4Scale({scale, scale, scale})
     model = model * glm.mat4Rotate({0.0, 0.0, 1}, test)
 
     test += 0.01
