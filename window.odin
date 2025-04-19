@@ -1,5 +1,6 @@
 package main
 import win "core:sys/windows"
+import glm "core:math/linalg/glsl"
 import "base:intrinsics"
 import "core:c"
 
@@ -42,6 +43,18 @@ initWindow :: proc() {
     rect: win.RECT
     win.GetClientRect(ctx.hwnd, &rect)
     ctx.windowSize = { rect.right - rect.left, rect.bottom - rect.top }
+
+    { // for WM_INPUT
+	    rawDevices: []win.RAWINPUTDEVICE = {
+            win.RAWINPUTDEVICE {
+                usUsagePage = win.HID_USAGE_PAGE_GENERIC,
+                usUsage     = win.HID_USAGE_GENERIC_MOUSE,
+                dwFlags     = win.RIDEV_INPUTSINK,
+                hwndTarget  = ctx.hwnd,
+            },
+        }
+        win.RegisterRawInputDevices(&rawDevices[0], u32(len(rawDevices)), size_of(win.RAWINPUTDEVICE))
+    }
 }
 
 toggleBorderlessFullscreen :: proc() {
@@ -70,9 +83,45 @@ toggleBorderlessFullscreen :: proc() {
 }
 
 handleKeyboard :: proc() {
-    cameraSpeed :: 0.1
-    if win.GetAsyncKeyState(win.VK_W) != 0 { moveCamera({ 0, cameraSpeed, 0 }) }
-    if win.GetAsyncKeyState(win.VK_S) != 0 { moveCamera({ 0, -cameraSpeed, 0 }) }
-    if win.GetAsyncKeyState(win.VK_A) != 0 { moveCamera({ -cameraSpeed, 0, 0 }) }
-    if win.GetAsyncKeyState(win.VK_D) != 0 { moveCamera({ cameraSpeed, 0, 0 }) }
+    if ctx.camera.freeMode {
+        cameraSpeed := f32(ctx.timeDelta)
+        if win.GetAsyncKeyState(win.VK_SHIFT) != 0 { cameraSpeed *= 3 }
+
+        if win.GetAsyncKeyState(win.VK_W) != 0 { 
+            ctx.camera.pos -= ctx.camera.front * cameraSpeed
+            syncCameraMat()
+        }
+        if win.GetAsyncKeyState(win.VK_S) != 0 { 
+            ctx.camera.pos += ctx.camera.front * cameraSpeed
+            syncCameraMat()
+        }
+        if win.GetAsyncKeyState(win.VK_A) != 0 { 
+            ctx.camera.pos += glm.normalize_vec3(glm.cross_vec3(ctx.camera.front, ctx.camera.up)) * cameraSpeed
+            syncCameraMat()
+        }
+        if win.GetAsyncKeyState(win.VK_D) != 0 { 
+            ctx.camera.pos -= glm.normalize_vec3(glm.cross_vec3(ctx.camera.front, ctx.camera.up)) * cameraSpeed
+            syncCameraMat()
+        }   
+    }
 }
+
+// getDpi :: proc() -> float2 {
+//     MONITOR_DEFAULTTONEAREST :: 0x00000002
+
+//     //monitor := win.MonitorFromWindow(ctx.hwnd, .MONITOR_DEFAULTTONEAREST)
+
+//     pt: win.POINT 
+//     win.GetCursorPos(&pt)
+
+//     monitor := win.MonitorFromPoint(pt, .MONITOR_DEFAULTTONEAREST)
+
+//     dpiX, dpiY: u32
+//     win.GetDpiForMonitor(monitor, .MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
+
+//     mi: win.MONITORINFOEXW
+//     win.GetMonitorInfoW(monitor, &mi)
+//     print(mi)
+
+//     return { f32(dpiX), f32(dpiY) }
+// }

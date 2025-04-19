@@ -50,7 +50,15 @@ Context :: struct {
 	shaders: [ShaderType]Shader,
 	textures: [TextureType]Maybe(Texture),
 
-	cameraPos: float3,
+	camera: struct{
+		freeMode: bool,
+		pos: float3,
+		up: float3,
+
+		yaw: f32,
+		pitch: f32,
+		front: float3,
+	},
 	uiProjMat, projMat, viewMat: mat4,
 
 	objs: [dynamic]GameObj,

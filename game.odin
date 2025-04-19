@@ -10,7 +10,7 @@ GameObj :: struct {
 }
 
 initObjs :: proc() {
-    scale: f32 = .01
+    scale: f32 = 1
     obj: GameObj = { 
         pos = { 0, 0, 0 },
         scale = { scale, scale, scale },

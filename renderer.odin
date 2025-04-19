@@ -13,14 +13,14 @@ render :: proc() {
     gl.ClearColor(0.5, 0.7, 1.0, 1.0)
     gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-    renderQuad({-0.3, -0.3, 0}, {1,1}, .DOGGO, {0, 0.0, 1}, 0)
-    t += 0.01
+    renderQuad({-0.3, -0.3 + 1, 1}, {1,1}, .DOGGO, {0, 0.0, 1}, 0)
+    t += f32(ctx.timeDelta)
 
-    renderQuad({0, 0.5, math.cos(h) / 4 }, {1,1}, .DOGGO_2, {0, 0.0, 1}, t / 2)
+    renderQuad({-.6, 0.5 + 1, math.cos(h) / 4 + 1 }, {1,1}, .DOGGO_2, {0, 0.0, 1}, t / 2)
 
-    renderQuad({0.4, 0.3, -0.1 }, {1,1}, .DOGGO_3, {0, 0.0, 1}, -t * 2)
+    renderQuad({0.4, 0.3 + 1, 0.9 }, {1,1}, .DOGGO_3, {0, 0.0, 1}, -t * 2)
 
-    h += 0.01
+    h += f32(ctx.timeDelta)
 
     for obj in ctx.objs {
         t := glm.mat4Translate(obj.pos)
@@ -34,7 +34,6 @@ render :: proc() {
     
         renderMesh(&ctx.meshes[.TEST_MESH])
     }
-
 
     renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
     
@@ -79,22 +78,6 @@ renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLi
     }
 }
 
-initCamera :: proc() {
-    ctx.viewMat = glm.mat4LookAt({0, -1, +1}, {0, 0, 0}, {0, 0, 1})
-    initProjections()
-}
-
-initProjections :: proc() {
-    //ctx.projMat = glm.mat4Perspective(45, f32(ctx.windowSize.x) / f32(ctx.windowSize.y), 0.1, 100.0)
-    ctx.projMat = glm.mat4PerspectiveInfinite(45, f32(ctx.windowSize.x) / f32(ctx.windowSize.y), 0.1)
-    ctx.uiProjMat = glm.mat4Ortho3d(0, f32(ctx.windowSize.x), f32(ctx.windowSize.y), 0, 0, 100)
-}
-
-moveCamera :: proc(pos: float3) {
-    ctx.cameraPos += pos
-    ctx.viewMat = glm.mat4LookAt(ctx.cameraPos + {0, -1, +1}, ctx.cameraPos, {0, 0, 1})
-}
-
 time: f32 = 0
 renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotationVec: float3 = { 0, 0, 0 }, rotationAngle: f32 = 0) {
     gl.BindVertexArray(ctx.quad.vao)
@@ -129,13 +112,12 @@ renderMesh :: proc(mesh: ^Mesh) {
             hasTexture = 1
         }
         
-        u_projection := ctx.projMat * ctx.viewMat
-        u_transform := mesh.mat
         color := primitive.color
 
         uniforms := ctx.shaders[.MESH].uniforms
-        gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &u_projection[0, 0])
-        gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
+        gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
+        gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
+        gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &mesh.mat[0, 0])
         gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
         gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
         //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
@@ -147,7 +129,3 @@ renderMesh :: proc(mesh: ^Mesh) {
         renderMesh(&childMesh)
     }
 }
-
-// renderQube :: proc(position: float3, size: f32, rotationVec: float3 = { 0, 0, 0 }, rotationAngle: f32 = 0) {
-//     renderQuad(position, { size, size }, rotationVec, rotationAngle)
-// }
