@@ -93,8 +93,18 @@ initOpengl :: proc() {
     win.wglSwapIntervalEXT(1) // enable v sync
     // gl.Enable(gl.MULTISAMPLE) // should on by default
 
-    gl.Enable(gl.CULL_FACE)
+    gl.Enable(gl.DEBUG_OUTPUT)
+    gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)
+    debugProc :: proc "c" (source: u32, type: u32, id: u32, severity: u32, length: i32, message: cstring, userParam: rawptr) {
+        context = default_context
+        print(message)
+    }
+    gl.DebugMessageCallback(debugProc, nil)
+
+    //gl.Enable(gl.CULL_FACE)
+    gl.Disable(gl.CULL_FACE) // just for testing 3d models
     //gl.CullFace(gl.FRONT)
+    //gl.CullFace(gl.BACK)
     //gl.FrontFace(gl.CW)
 
     gl.Enable(gl.DEPTH_TEST)
@@ -115,13 +125,14 @@ clearOpengl :: proc() {
 	}
 
 	for &mesh in ctx.meshes {
-		gl.DeleteBuffers(1, &mesh.ebo)
-		gl.DeleteBuffers(1, &mesh.vbo)
-		gl.DeleteVertexArrays(1, &mesh.vao)
+        clearMesh(&mesh)
 	}
     
 	for &texture in ctx.textures {
-		gl.DeleteTextures(1, &texture.texture)
+        if texture != nil {
+            textureId := texture.?.texture
+            gl.DeleteTextures(1, &textureId)
+        }
 	}
 
 	win.wglMakeCurrent(nil, nil)
@@ -137,8 +148,7 @@ loadShaders :: proc() {
         ctx.shaders[.QUAD] = Shader{
             program = program,
             uniforms = gl.get_uniforms_from_program(program),
-        }
-            
+        } 
     }
 
     { // font
@@ -148,8 +158,7 @@ loadShaders :: proc() {
         ctx.shaders[.FONT] = Shader{
             program = program,
             uniforms = gl.get_uniforms_from_program(program),
-        }
-            
+        }  
     }
 
     { // mesh
@@ -160,19 +169,22 @@ loadShaders :: proc() {
             program = program,
             uniforms = gl.get_uniforms_from_program(program),
         }
-            
     }
 }
 
 loadTextures :: proc() {
-    ctx.textures[.DOGGO] = loadTextureFromImage(#load("./res/doggo.png"))
-    ctx.textures[.DOGGO_2] = loadTextureFromImage(#load("./res/doggo_2.png"))
-    ctx.textures[.DOGGO_3] = loadTextureFromImage(#load("./res/doggo_3.png"))
+    ctx.textures[.DOGGO], _ = loadTextureFromImage(#load("./res/doggo.png"))
+    ctx.textures[.DOGGO_2], _ = loadTextureFromImage(#load("./res/doggo_2.png"))
+    ctx.textures[.DOGGO_3], _ = loadTextureFromImage(#load("./res/doggo_3.png"))
 }
 
-loadTextureFromImage :: proc(imageFileContent: []u8) -> Texture {
+loadTextureFromImage :: proc(imageFileContent: []u8) -> (Maybe(Texture), bool) {
     parsedImage, imageErr := image.load_from_bytes(imageFileContent)
-    assert(imageErr == nil, "Couldn't parse image")
+
+    if imageErr != nil {
+        print("Couldn't parse image", imageErr)
+        return nil, false
+    }
     defer image.destroy(parsedImage)
 
     image.alpha_add_if_missing(parsedImage)
@@ -196,5 +208,5 @@ loadTextureFromImage :: proc(imageFileContent: []u8) -> Texture {
         texture = texture,
         width = parsedImage.width,
         height = parsedImage.height,
-    }
+    }, true
 }

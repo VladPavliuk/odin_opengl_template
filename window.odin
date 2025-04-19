@@ -1,6 +1,7 @@
 package main
 import win "core:sys/windows"
 import "base:intrinsics"
+import "core:c"
 
 L :: intrinsics.constant_utf16_cstring
 
@@ -66,4 +67,12 @@ toggleBorderlessFullscreen :: proc() {
     }
 
     ctx.isFullscreen = !ctx.isFullscreen
+}
+
+handleKeyboard :: proc() {
+    cameraSpeed :: 0.1
+    if win.GetAsyncKeyState(win.VK_W) != 0 { moveCamera({ 0, cameraSpeed, 0 }) }
+    if win.GetAsyncKeyState(win.VK_S) != 0 { moveCamera({ 0, -cameraSpeed, 0 }) }
+    if win.GetAsyncKeyState(win.VK_A) != 0 { moveCamera({ -cameraSpeed, 0, 0 }) }
+    if win.GetAsyncKeyState(win.VK_D) != 0 { moveCamera({ cameraSpeed, 0, 0 }) }
 }

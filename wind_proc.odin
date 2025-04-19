@@ -36,7 +36,7 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
         gl.Viewport(0, 0, i32(ctx.windowSize.x), i32(ctx.windowSize.y))
 
         // NOTE: while resizing we only get resize message, so we can't redraw from main loop, so we do it explicitlly
-        initCamera()
+        initProjections()
         render()
     case win.WM_DESTROY: win.PostQuitMessage(0)
     }

@@ -22,7 +22,19 @@ render :: proc() {
 
     h += 0.01
 
-    renderMesh()
+    for obj in ctx.objs {
+        t := glm.mat4Translate(obj.pos)
+        s := glm.mat4Scale(obj.scale)
+        if obj.rot.angle != 0 {
+            r := glm.mat4Rotate(obj.rot.vec, obj.rot.angle)
+            applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * r * s)
+        } else {
+            applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * s)
+        }
+    
+        renderMesh(&ctx.meshes[.TEST_MESH])
+    }
+
 
     renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
     
@@ -31,14 +43,15 @@ render :: proc() {
 
 renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLineWidth: f32 = 0) {
     color := color
-    gl.BindVertexArray(ctx.meshes[.SPRITE].vao)
+    fontTexture := ctx.textures[.FONT].?
+
+    gl.BindVertexArray(ctx.font.vao)
     gl.UseProgram(ctx.shaders[.FONT].program)
-    gl.BindTexture(gl.TEXTURE_2D, ctx.textures[.FONT].texture)
+    gl.BindTexture(gl.TEXTURE_2D, fontTexture.texture)
 
     gl.UniformMatrix4fv(ctx.shaders[.FONT].uniforms["u_projection"].location, 1, false, &ctx.uiProjMat[0, 0])
     gl.Uniform3fv(ctx.shaders[.FONT].uniforms["u_textColor"].location, 1, raw_data(&color))
 
-    fontTexture := ctx.textures[.FONT]
 
     x: f32 = pos.x
     y: f32 = pos.y + ctx.font.ascent
@@ -58,25 +71,35 @@ renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLi
             x = pos.x
         }
 
-        gl.BindVertexArray(ctx.meshes[.SPRITE].vao)
-        gl.BindBuffer(gl.ARRAY_BUFFER, ctx.meshes[.SPRITE].vbo)
+        gl.BindVertexArray(ctx.font.vao)
+        gl.BindBuffer(gl.ARRAY_BUFFER, ctx.font.vbo)
         gl.BufferSubData(gl.ARRAY_BUFFER, 0, size_of(vertices), raw_data(vertices[:]))
 
-        gl.DrawElements(gl.TRIANGLES, i32(ctx.meshes[.SPRITE].indicesCount), gl.UNSIGNED_INT, nil)
+        gl.DrawElements(gl.TRIANGLES, i32(ctx.font.indicesCount), gl.UNSIGNED_INT, nil)
     }
 }
 
 initCamera :: proc() {
     ctx.viewMat = glm.mat4LookAt({0, -1, +1}, {0, 0, 0}, {0, 0, 1})
-    ctx.projMat = glm.mat4Perspective(45, f32(ctx.windowSize.x) / f32(ctx.windowSize.y), 0.1, 100.0)
+    initProjections()
+}
+
+initProjections :: proc() {
+    //ctx.projMat = glm.mat4Perspective(45, f32(ctx.windowSize.x) / f32(ctx.windowSize.y), 0.1, 100.0)
+    ctx.projMat = glm.mat4PerspectiveInfinite(45, f32(ctx.windowSize.x) / f32(ctx.windowSize.y), 0.1)
     ctx.uiProjMat = glm.mat4Ortho3d(0, f32(ctx.windowSize.x), f32(ctx.windowSize.y), 0, 0, 100)
+}
+
+moveCamera :: proc(pos: float3) {
+    ctx.cameraPos += pos
+    ctx.viewMat = glm.mat4LookAt(ctx.cameraPos + {0, -1, +1}, ctx.cameraPos, {0, 0, 1})
 }
 
 time: f32 = 0
 renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotationVec: float3 = { 0, 0, 0 }, rotationAngle: f32 = 0) {
-    gl.BindVertexArray(ctx.meshes[.QUAD].vao)
+    gl.BindVertexArray(ctx.quad.vao)
     gl.UseProgram(ctx.shaders[.QUAD].program)
-    gl.BindTexture(gl.TEXTURE_2D, ctx.textures[texture].texture)
+    gl.BindTexture(gl.TEXTURE_2D, ctx.textures[texture].?.texture)
 
     model := glm.mat4Translate(position)
     model = model * glm.mat4Scale({scale.x, scale.y, 0})
@@ -91,31 +114,38 @@ renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotati
     gl.Uniform1f(ctx.shaders[.QUAD].uniforms["u_time"].location, time)
     time += 0.030
 
-    gl.DrawElements(gl.TRIANGLES, i32(ctx.meshes[.QUAD].indicesCount), gl.UNSIGNED_INT, nil)
+    gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
 }
 
-renderMesh :: proc() {
-    gl.BindVertexArray(ctx.meshes[.TEST_MESH].vao)
-    gl.UseProgram(ctx.shaders[.MESH].program)
+renderMesh :: proc(mesh: ^Mesh) {
+    for primitive in mesh.primitives {
+        gl.BindVertexArray(primitive.vao)
+        gl.UseProgram(ctx.shaders[.MESH].program)
 
-    scale: f32= 0.005
+        // todo: handle non textures
+        hasTexture: i32 = 0
+        if primitive.texture != nil {
+            gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
+            hasTexture = 1
+        }
+        
+        u_projection := ctx.projMat * ctx.viewMat
+        u_transform := mesh.mat
+        color := primitive.color
 
-    @(static)
-    test: f32 = 0
-    
-    model := glm.mat4Translate({ 0, 0, 0 })
-    model = model * glm.mat4Scale({scale, scale, scale})
-    model = model * glm.mat4Rotate({0.0, 0.0, 1}, test)
+        uniforms := ctx.shaders[.MESH].uniforms
+        gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &u_projection[0, 0])
+        gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
+        gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
+        gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
+        //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
 
-    test += 0.01
+        gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
+    }
 
-    //glm.identity
-    
-    u_transform := ctx.projMat * ctx.viewMat * model
-
-    gl.UniformMatrix4fv(ctx.shaders[.MESH].uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
-
-    gl.DrawElements(gl.TRIANGLES, i32(ctx.meshes[.TEST_MESH].indicesCount), gl.UNSIGNED_INT, nil)
+    for &childMesh in mesh.children {
+        renderMesh(&childMesh)
+    }
 }
 
 // renderQube :: proc(position: float3, size: f32, rotationVec: float3 = { 0, 0, 0 }, rotationAngle: f32 = 0) {

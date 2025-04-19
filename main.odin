@@ -7,6 +7,7 @@ import "core:time"
 import glm "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 fmt :: fmt
+print :: fmt.println
 
 ShaderType :: enum {
 	QUAD,
@@ -41,11 +42,18 @@ Context :: struct {
 	hwnd: win.HWND,
 	openglCtx: win.HGLRC,
 
+	quad: struct {
+		vbo, vao, ebo: u32,
+		indicesCount: int,
+	},
 	meshes: [MeshType]Mesh,
 	shaders: [ShaderType]Shader,
-	textures: [TextureType]Texture,
+	textures: [TextureType]Maybe(Texture),
 
+	cameraPos: float3,
 	uiProjMat, projMat, viewMat: mat4,
+
+	objs: [dynamic]GameObj,
 
 	timeDelta: f64,
 	font: FontData,
@@ -57,10 +65,10 @@ tracker: mem.Tracking_Allocator
 
 // todo:
 // sprites
+// ability to select items on screen
 // framebuffer
 // instancing
 // ui
-// mesh rendering
 // lighting
 // sound
 // pbr
@@ -76,24 +84,12 @@ main :: proc() {
 
 	loadShaders()
 	createQaudMesh()
-	createSpriteMesh()
 	loadTextures()
 	loadFont()
 	initCamera()
+	loadMeshes()
 
-	// loadGltfFile("C:/Users/Vlad/Downloads/survival_guitar_backpack/scene.gltf")
-	loadGltfFile("C:\\projects\\odin_opengl_template\\res\\ball\\ball.gltf")
-	//loadGltfFile("C:/projects/DirectXTemplate/DirectXTemplate/resources/Mars Curiosity Rover.glb")
-
-	// buf := gltf2.buffer_slice(data, 0).([][3]f32)
-    // for val, i in buf {
-    //     fmt.printf("Index: %v = %v\n", i, val)
-    // }
-
-
-	//scene := assimp_import_file("C:\\Users\\Vlad\\Downloads\\fdx54mtvuz28-FinalBaseMesh\\FinalBaseMesh.obj", u32(aiPostProcessSteps.Triangulate | aiPostProcessSteps.FlipUVs))
-    
-	//processNode(scene.mRootNode, scene)
+	initObjs()
 
     msg: win.MSG
     for msg.message != win.WM_QUIT {
@@ -106,12 +102,16 @@ main :: proc() {
             continue
         }
 
+		handleKeyboard()
+		updateObjs()
+
 		render()
 		ctx.timeDelta = time.duration_seconds(time.tick_diff(beforeFrame, time.tick_now()))
     }
 
 	clearOpengl()
 	clearContext()
+	deleteObjs()
 
 	when ODIN_DEBUG { 
 		for _, leak in tracker.allocation_map {
@@ -122,8 +122,8 @@ main :: proc() {
 		}
 
 		if tracker.total_memory_allocated - tracker.total_memory_freed > 0 {        
-			fmt.println("Total allocated", tracker.total_memory_allocated)
-			fmt.println("Total freed", tracker.total_memory_freed)
+			// fmt.println("Total allocated", tracker.total_memory_allocated)
+			// fmt.println("Total freed", tracker.total_memory_freed)
 			fmt.println("Total leaked", tracker.total_memory_allocated - tracker.total_memory_freed)
 		}
 	}

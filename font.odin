@@ -17,6 +17,10 @@ FontData :: struct {
 
     chars: map[rune]FontChar,
     kerningTable: map[rune]map[rune]f32,
+
+    // opengl staff
+    vbo, vao, ebo: u32,
+	indicesCount: int,
 }
 
 loadFont :: proc() {
@@ -47,6 +51,7 @@ loadFont :: proc() {
         width = int(bitmapSize.x),
         height = int(bitmapSize.y),
     }
+    createFontMesh()
 }
 
 GetBakedFontQuad :: proc(chardata: FontChar, pw: int, ph: int, xpos: ^f32, ypos: ^f32) -> stbtt.aligned_quad {
@@ -156,4 +161,42 @@ BakeFontBitmapCustomChars :: proc(data: []byte, pixelHeight: f32, bitmap: []byte
     // fontData.chars['\t'] = tabGlyph
 
     return fontData
+}
+
+createFontMesh :: proc() {
+    Vertex :: struct {
+        pos: float2,
+        tex: float2,
+    }
+
+	indices := []u32{
+		0, 1, 2,
+		2, 3, 0,
+	}
+    
+    vao, vbo, ebo: u32
+	gl.GenVertexArrays(1, &vao)
+	gl.GenBuffers(1, &vbo)
+	gl.GenBuffers(1, &ebo)
+
+    gl.BindVertexArray(vao)
+
+    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+    gl.BufferData(gl.ARRAY_BUFFER, 4 * size_of(Vertex), nil, gl.DYNAMIC_DRAW)
+    gl.EnableVertexAttribArray(0)
+	gl.EnableVertexAttribArray(1)
+    gl.VertexAttribPointer(0, 2, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, pos))
+    gl.VertexAttribPointer(1, 2, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, tex))
+
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices) * size_of(indices[0]), raw_data(indices), gl.STATIC_DRAW)
+
+    gl.BindVertexArray(0)
+    gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+
+    ctx.font.vao = vao
+    ctx.font.vbo = vbo
+    ctx.font.ebo = ebo
+    ctx.font.indicesCount = len(indices)
 }
