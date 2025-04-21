@@ -96,8 +96,10 @@ initOpengl :: proc() {
     gl.Enable(gl.DEBUG_OUTPUT)
     gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)
     debugProc :: proc "c" (source: u32, type: u32, id: u32, severity: u32, length: i32, message: cstring, userParam: rawptr) {
+        if severity == gl.DEBUG_SEVERITY_NOTIFICATION { return }
+        
         context = default_context
-        print(message)
+        print(severity, message)
     }
     gl.DebugMessageCallback(debugProc, nil)
 

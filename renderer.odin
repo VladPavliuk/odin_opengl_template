@@ -25,13 +25,10 @@ render :: proc() {
     for obj in ctx.objs {
         t := glm.mat4Translate(obj.pos)
         s := glm.mat4Scale(obj.scale)
-        if obj.rot.angle != 0 {
-            r := glm.mat4Rotate(obj.rot.vec, obj.rot.angle)
-            applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * r * s)
-        } else {
-            applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * s)
-        }
-    
+        r := glm.mat4FromQuat(obj.rot)
+
+        applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * r * s)
+        
         renderMesh(&ctx.meshes[.TEST_MESH])
     }
 
@@ -113,7 +110,6 @@ renderMesh :: proc(mesh: ^Mesh) {
         }
         
         color := primitive.color
-
         uniforms := ctx.shaders[.MESH].uniforms
         gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
         gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])

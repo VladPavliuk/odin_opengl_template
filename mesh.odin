@@ -34,9 +34,9 @@ loadMeshes :: proc() {
     //ctx.meshes[.TEST_MESH] = loadGltfFile("C:/Users/Vlad/Downloads/test1234/Untitled.glb")
     //ctx.meshes[.TEST_MESH] = loadGltfFile("C:/Users/Vlad/Downloads/house_1/scene.gltf")
     //ctx.meshes[.TEST_MESH] = loadGltfFile("C:/Users/Vlad/Downloads/rover/rover.gltf")
-    ctx.meshes[.TEST_MESH] = loadGltfFile("C:/Users/Vlad/Downloads/monster_house_mayville_map.glb")
-    //  ctx.meshes[.TEST_MESH] = loadGltfFile("C:\\projects\\odin_opengl_template\\res\\building_1.glb")
-    //ctx.meshes[.TEST_MESH] = loadGltfFile("C:\\projects\\DirectXTemplate\\DirectXTemplate\\resources\\enamy_plane.glb")
+    //ctx.meshes[.TEST_MESH] = loadGltfFile("C:/Users/Vlad/Downloads/monster_house_mayville_map.glb")
+    //ctx.meshes[.TEST_MESH] = loadGltfFile("C:\\projects\\odin_opengl_template\\res\\building_1.glb")
+    ctx.meshes[.TEST_MESH] = loadGltfFile("C:\\projects\\DirectXTemplate\\DirectXTemplate\\resources\\enamy_plane.glb")
     //ctx.meshes[.TEST_MESH] = loadGltfFile("C:\\projects\\odin_opengl_template\\res\\building\\building.gltf")
 
     //loadGltfFile("C:/Users/Vlad/Downloads/survival_guitar_backpack/scene.gltf")
@@ -82,7 +82,7 @@ createMesh :: proc(mesh: ^Mesh) {
 }
 
 applyTransfToMesh :: proc(mesh: ^Mesh, mat: mat4) {
-    mesh.mat = mesh.origMat * mat
+    mesh.mat = mat * mesh.origMat
     
     for &childMesh in mesh.children {
         applyTransfToMesh(&childMesh, mesh.mat)

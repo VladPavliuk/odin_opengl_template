@@ -99,6 +99,10 @@ main :: proc() {
 
 	initObjs()
 
+	// for testing
+	// toggleBorderlessFullscreen()
+	toggleFreeCameraMode()
+
     msg: win.MSG
     for msg.message != win.WM_QUIT {
         defer free_all(context.temp_allocator)

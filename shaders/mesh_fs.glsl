@@ -27,7 +27,7 @@ void main() {
 
 	//vec3 lightDir = normalize(lightPos - v_fragPos); // for moving light
 	vec3 lightDir = vec3(-1.0, 0.0, 0.0);
-	vec3 lightColor = vec3(0.0, 1.0, 0.0);
+	vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
 	//lightDir = normalize(-lightDir);
 

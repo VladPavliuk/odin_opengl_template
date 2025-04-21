@@ -25,52 +25,24 @@ loadGltfFile :: proc(filePath: string) -> Mesh {
 	return mesh
 }
 
-// quat_to_mat4 :: proc(q: quaternion128) -> mat4 {
-//     x, y, z, w := q.x, q.y, q.z, q.w
-
-//     xx := x * x
-//     yy := y * y
-//     zz := z * z
-//     xy := x * y
-//     xz := x * z
-//     yz := y * z
-//     wx := w * x
-//     wy := w * y
-//     wz := w * z
-
-//     return mat4{
-//         1 - 2*(yy + zz), 2*(xy - wz),     2*(xz + wy),     0,
-//         2*(xy + wz),     1 - 2*(xx + zz), 2*(yz - wx),     0,
-//         2*(xz - wy),     2*(yz + wx),     1 - 2*(xx + yy), 0,
-//         0,               0,               0,               1,
-//     }
-// }
-
 processNode :: proc(data: ^gltf2.Data, node: ^gltf2.Node, mesh: ^Mesh, globalTransformMat: matrix[4, 4]f32 = identityMat) {
-	globalTransformMat := globalTransformMat
-
 	if node.mat != identityMat { // matrix is actually provided
-		globalTransformMat = globalTransformMat * node.mat
+		mesh.origMat = node.mat
 	} else {
 		t := glm.mat4Translate(node.translation)
 		r := glm.mat4FromQuat(node.rotation)
 		s := glm.mat4Scale(node.scale)
 	
-		a := t * r * s
-	
-		globalTransformMat = globalTransformMat * node.mat * a
+		mesh.origMat = t * r * s
 	}
 	
-	mesh.origMat = globalTransformMat
-	mesh.mat = mesh.origMat
-
 	if node.mesh != nil {
 		nodeMesh := data.meshes[node.mesh.?]
 
 		for primitive in nodeMesh.primitives {
 			meshVertices: [dynamic]MeshVertex
 			meshIndices: [dynamic]u32
-			glTexture: Maybe(Texture)
+			glTexture: Maybe(Texture) = nil
 			meshColor: float4
 
 			positions: []float3
