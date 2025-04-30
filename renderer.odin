@@ -22,14 +22,14 @@ render :: proc() {
 
     h += f32(ctx.timeDelta)
 
-    for obj in ctx.objs {
+    for &obj in ctx.objs {
         t := glm.mat4Translate(obj.pos)
         s := glm.mat4Scale(obj.scale)
         r := glm.mat4FromQuat(obj.rot)
 
-        applyTransfToMesh(&ctx.meshes[.TEST_MESH], t * r * s)
+        applyTransfToGameObj(&obj, t * r * s)
         
-        renderMesh(&ctx.meshes[.TEST_MESH])
+        renderMesh(&obj)
     }
 
     renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
@@ -97,31 +97,37 @@ renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotati
     gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
 }
 
-renderMesh :: proc(mesh: ^Mesh) {
-    for primitive in mesh.primitives {
-        gl.BindVertexArray(primitive.vao)
-        gl.UseProgram(ctx.shaders[.MESH].program)
+renderMesh :: proc(obj: ^GameObj) {
+    mesh := &ctx.meshes[obj.mesh.type]
+    assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
 
-        // todo: handle non textures
-        hasTexture: i32 = 0
-        if primitive.texture != nil {
-            gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
-            hasTexture = 1
+    for node, nodeIndex in mesh.nodes {
+        for primitive in node.primitives {
+            gl.BindVertexArray(primitive.vao)
+            gl.UseProgram(ctx.shaders[.MESH].program)
+
+            // todo: handle non textures
+            hasTexture: i32 = 0
+            if primitive.texture != nil {
+                gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
+                hasTexture = 1
+            }
+            
+            color := primitive.color
+            uniforms := ctx.shaders[.MESH].uniforms
+            transformMat := obj.mesh.nodeTransforms[nodeIndex]
+            gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
+            gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
+            gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
+            gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
+            gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
+            //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
+
+            gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
         }
-        
-        color := primitive.color
-        uniforms := ctx.shaders[.MESH].uniforms
-        gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
-        gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
-        gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &mesh.mat[0, 0])
-        gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
-        gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
-        //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
-
-        gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
     }
 
-    for &childMesh in mesh.children {
-        renderMesh(&childMesh)
-    }
+    // for &childMesh in mesh.children {
+    //     renderMesh(&childMesh)
+    // }
 }

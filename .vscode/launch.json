@@ -7,6 +7,8 @@
         {
             "name": "Debug",
             "type": "cppvsdbg",
+            "symbolSearchPath": "odin_opengl_template.pdb",
+            "logging": { "trace": true },
             "request": "launch",
             "program": "${workspaceFolder}/bin/odin_opengl_template.exe",
             "cwd": "${workspaceFolder}",

@@ -57,7 +57,6 @@ initOpengl :: proc() {
             win.WGL_STENCIL_BITS_ARB, 8,
 
             // multisample
-            win.WGL_DOUBLE_BUFFER_ARB, 1,
             win.WGL_SAMPLE_BUFFERS_ARB, 1,
             win.WGL_SAMPLES_ARB, multisampleLevel,
 
@@ -91,7 +90,7 @@ initOpengl :: proc() {
     gl.load_up_to(majorVersion, minorVersion, win.gl_set_proc_address)
 
     win.wglSwapIntervalEXT(1) // enable v sync
-    // gl.Enable(gl.MULTISAMPLE) // should on by default
+    //gl.Enable(gl.MULTISAMPLE) // should on by default
 
     gl.Enable(gl.DEBUG_OUTPUT)
     gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)

@@ -1,5 +1,6 @@
 package main
 
+import "base:intrinsics"
 import "core:math"
 
 int2 :: [2]i32
@@ -17,3 +18,13 @@ identityMat := matrix[4, 4]f32{
 	0, 0, 0, 1,
 }
 
+@(require_results)
+slice_map :: proc(input: []$T, mapper: proc(T) -> $Y) -> []intrinsics.type_elem_type(Y) {
+	output := make([]Y, len(input))
+
+	for item, index in intput {
+		output[index] = mapper(item)
+	}
+
+	return output
+}

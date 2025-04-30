@@ -7,6 +7,8 @@ import "core:c"
 L :: intrinsics.constant_utf16_cstring
 
 initWindow :: proc() {
+    win.SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
+
     wndClassName := L("wnd class")
     hHandle := win.HINSTANCE(win.GetModuleHandleW(nil))
     defaultCursor := win.LoadCursorA(nil, win.IDC_ARROW)
