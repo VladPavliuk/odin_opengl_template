@@ -19,7 +19,7 @@ GameObj :: struct {
         running: bool,
         index: i32, // animation index from mesh animations, 
         duration: f32,
-        nodesTransf: map[i32]struct{ // apply to each node instead of static node mat
+        nodeTransforms: map[i32]struct{ // apply to each node instead of static node mat
             translation: Maybe(float3),
             scale: Maybe(float3),
             rotation: Maybe(quaternion128),
@@ -28,7 +28,7 @@ GameObj :: struct {
 }
 
 initObjs :: proc() {
-    scale: f32 = 1
+    scale: f32 = 0.15
     obj: GameObj = { 
         pos = { 0, 1, 0.2 },
         scale = { scale, scale, scale },
@@ -58,6 +58,7 @@ updateObjs :: proc() {
 deleteObjs :: proc() {
     for obj in ctx.objs {
         delete(obj.mesh.nodeTransforms)
+        delete(obj.animation.nodeTransforms)
     }
     delete(ctx.objs)
 }

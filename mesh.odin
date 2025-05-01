@@ -60,7 +60,8 @@ Mesh :: struct {
 loadMeshes :: proc() {
     // meshMesh := "C:/Projects/odin_opengl_template/models/barrel/barrel.gltf"
     // meshMesh := "C:/Projects/odin_opengl_template/models/Cute_Demon.glb"
-    meshMesh := "C:/Projects/odin_opengl_template/models/Light_Switch.glb"
+    // meshMesh := "C:/Projects/odin_opengl_template/models/Light_Switch.glb"
+    meshMesh := "C:/Projects/odin_opengl_template/models/plane.glb"
     //meshMesh := "C:/Projects/odin_opengl_template/models/what u see.glb"
 
     ctx.meshes[.TEST_MESH] = loadGltfFile(meshMesh)
@@ -117,9 +118,11 @@ applyTransfToGameObj :: proc(obj: ^GameObj, mat: mat4) {
         node := mesh.nodes[index]
         nodeMat: mat4
 
-        if index in obj.animation.nodesTransf {
+        if index in obj.animation.nodeTransforms {
+            //animation := mesh.animations[obj.animation.index]
+
             mat := mat4(1)
-            transf := obj.animation.nodesTransf[index]
+            transf := obj.animation.nodeTransforms[index]
 
             if transf.scale != nil { mat = glm.mat4Scale(transf.scale.?) * mat }
             else { mat = node.scale * mat } 
@@ -158,8 +161,20 @@ clearMesh :: proc(mesh: ^Mesh) {
         delete(node.primitives)
         delete(node.children)
     }
-
     delete(mesh.nodes)
+
+    for animation in mesh.animations {
+        for channel in animation.channels {
+            delete(channel.timestamps)
+            switch val in channel.values {
+            case []float3: delete(val)
+            case []float4: delete(val)
+            }
+        }
+        delete(animation.channels)
+    }
+
+    delete(mesh.animations)
 }
 
 createQaudMesh :: proc() {

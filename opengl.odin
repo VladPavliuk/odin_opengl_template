@@ -141,6 +141,16 @@ clearOpengl :: proc() {
 	win.ReleaseDC(ctx.hwnd, ctx.hdc)
 }
 
+createSSBO :: proc(data: []$T) -> u32 {
+    buffer: u32
+    gl.GenBuffers(1, &buffer)
+    gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, buffer)
+    gl.BufferData(gl.SHADER_STORAGE_BUFFER, size_of(T) * len(data), raw_data(data), gl.DYNAMIC_COPY)
+    gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0)
+
+    return buffer
+}
+
 loadShaders :: proc() {
     { // quad
         program, program_ok := gl.load_shaders_source(#load("./shaders/quad_vs.glsl"), #load("./shaders/quad_fs.glsl"))
@@ -167,6 +177,16 @@ loadShaders :: proc() {
         assert(program_ok)
 
         ctx.shaders[.MESH] = Shader{
+            program = program,
+            uniforms = gl.get_uniforms_from_program(program),
+        }
+    }
+
+    { // test compute shader
+        program, program_ok := gl.load_compute_source(#load("./shaders/test_compute.glsl"))
+        assert(program_ok)
+
+        ctx.shaders[.TEST_COMPUTE] = Shader{
             program = program,
             uniforms = gl.get_uniforms_from_program(program),
         }

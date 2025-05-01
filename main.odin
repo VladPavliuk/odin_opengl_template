@@ -1,6 +1,7 @@
 package main
 
 import win "core:sys/windows"
+import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:time"
@@ -13,6 +14,7 @@ ShaderType :: enum {
 	QUAD,
 	FONT,
 	MESH,
+	TEST_COMPUTE,
 }
 
 Shader :: struct {
@@ -49,6 +51,8 @@ Context :: struct {
 	meshes: [MeshType]Mesh,
 	shaders: [ShaderType]Shader,
 	textures: [TextureType]Maybe(Texture),
+
+	testSSBO: u32,
 
 	camera: struct{
 		freeMode: bool,
@@ -103,6 +107,13 @@ main :: proc() {
 	// toggleBorderlessFullscreen()
 	toggleFreeCameraMode()
 
+	testData := []float2 {
+		{0,0},
+		{1,1},
+		{2,2},
+	}
+	ctx.testSSBO = createSSBO(testData)
+
     msg: win.MSG
     for msg.message != win.WM_QUIT {
         defer free_all(context.temp_allocator)
@@ -116,6 +127,18 @@ main :: proc() {
 
 		handleKeyboard()
 		updateObjs()
+
+		// testing compute shader
+		// gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ctx.testSSBO)
+		// gl.UseProgram(ctx.shaders[.TEST_COMPUTE].program)
+		// gl.DispatchCompute(3, 1, 1)
+		// gl.MemoryBarrier(gl.SHADER_STORAGE_BARRIER_BIT) // make sure compute shader is done
+
+		// // read
+		// gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, ctx.testSSBO)
+		// readData := gl.MapBuffer(gl.SHADER_STORAGE_BUFFER, gl.READ_ONLY)
+		// testData2 := transmute([]float2)runtime.Raw_Slice{readData, len(testData)}
+		// gl.UnmapBuffer(gl.SHADER_STORAGE_BUFFER)
 
 		render()
 		ctx.timeDelta = time.duration_seconds(time.tick_diff(beforeFrame, time.tick_now()))

@@ -1,6 +1,7 @@
 package main
 
 import glm "core:math/linalg/glsl"
+import "core:math/linalg"
 import "core:mem"
 
 // Animation :: struct {
@@ -29,14 +30,14 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
 
         obj.animation.duration = 0 // todo: temporary repeat
 
-        clear(&obj.animation.nodesTransf)
+        clear(&obj.animation.nodeTransforms)
         return
     }
 
     NodeValue :: struct {
         nodeIndex: i32,
         transfType: MeshAnimationTransfType,
-        value: union { float3, float4 },
+        value: union { float3, quaternion128 },
     }
 
     nodesValues := make([dynamic]NodeValue)
@@ -47,17 +48,28 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
 
         for timestamp, timestampIndex in channel.timestamps { // get transformation value for the timestamp
             if obj.animation.duration < timestamp {
-                value: union { float3, float4 }
+                prevValue: union { float3, float4 }
                 switch _values in channel.values {
-                case []float3: value = channel.values.([]float3)[timestampIndex]
-                case []float4: value = channel.values.([]float4)[timestampIndex]
+                case []float3: prevValue = channel.values.([]float3)[timestampIndex - 1]
+                case []float4: prevValue = channel.values.([]float4)[timestampIndex - 1]
                 }
 
-                // nextValue: union { float3, float4 }
-                // switch _values in channel.values {
-                // case []float3: nextValue = channel.values.([]float3)[timestampIndex + 1]
-                // case []float4: nextValue = channel.values.([]float4)[timestampIndex + 1]
-                // }
+                nextValue: union { float3, float4 }
+                switch _values in channel.values {
+                case []float3: nextValue = channel.values.([]float3)[timestampIndex]
+                case []float4: nextValue = channel.values.([]float4)[timestampIndex]
+                }
+
+                // integrpolate value
+                delta := (obj.animation.duration - channel.timestamps[timestampIndex - 1]) / (channel.timestamps[timestampIndex] - channel.timestamps[timestampIndex - 1])
+                
+                value: union { float3, quaternion128 }
+                switch channel.transf {
+                case .ROTATION:
+                    value = glm.quatSlerp(transmute(quaternion128)prevValue.(float4), transmute(quaternion128)nextValue.(float4), delta)
+                case .SCALE, .TRANSLATE:
+                    value = glm.lerp_vec3(prevValue.(float3), nextValue.(float3), delta)
+                }
 
                 nodeValue.transfType = channel.transf
                 nodeValue.value = value
@@ -69,19 +81,15 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
     }
 
     for nodeValue in nodesValues { // populate each transformation type for each node
-        transf := obj.animation.nodesTransf[nodeValue.nodeIndex]
+        transf := obj.animation.nodeTransforms[nodeValue.nodeIndex]
 
         switch nodeValue.transfType {
-        case .ROTATION:
-            rotation: quaternion128
-            rotationVec := nodeValue.value.(float4)
-            mem.copy(&rotation, &rotationVec, size_of(quaternion128)) 
-            transf.rotation = rotation
+        case .ROTATION: transf.rotation = nodeValue.value.(quaternion128)
         case .SCALE: transf.scale = nodeValue.value.(float3)
         case .TRANSLATE: transf.translation = nodeValue.value.(float3)
         }
 
-        obj.animation.nodesTransf[nodeValue.nodeIndex] = transf
+        obj.animation.nodeTransforms[nodeValue.nodeIndex] = transf
     }
 }
 
