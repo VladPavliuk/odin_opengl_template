@@ -14,6 +14,7 @@ ShaderType :: enum {
 	QUAD,
 	FONT,
 	MESH,
+	PICK,
 	TEST_COMPUTE,
 }
 
@@ -43,6 +44,10 @@ Context :: struct {
     hdc: win.HDC,
 	hwnd: win.HWND,
 	openglCtx: win.HGLRC,
+	pickFBO: struct {
+		fbo: u32,
+		pickTexture, depthTexture: u32,
+	},
 
 	quad: struct {
 		vbo, vao, ebo: u32,
@@ -66,6 +71,7 @@ Context :: struct {
 	uiProjMat, projMat, viewMat: mat4,
 
 	objs: [dynamic]GameObj,
+	hoveredObj: i32,
 
 	timeDelta: f64,
 	font: FontData,
@@ -93,6 +99,7 @@ main :: proc() {
 	default_context = context 
 
     initWindow()
+    createPickFBO(ctx.windowSize.x, ctx.windowSize.y)
 
 	loadShaders()
 	createQaudMesh()

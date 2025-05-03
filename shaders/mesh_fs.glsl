@@ -8,6 +8,7 @@ in vec2 v_texCoord;
 
 uniform sampler2D meshTexture;
 uniform bool u_hasTexture;
+uniform bool u_hasMouseHover;
 
 uniform vec4 u_color;
 uniform vec3 u_cameraPos;
@@ -19,6 +20,10 @@ void main() {
 		materialColor = texture(meshTexture, v_texCoord);
 	} else {
 		materialColor = u_color;
+	}
+
+	if (u_hasMouseHover) {
+		materialColor *= 1.08; // add some highligh if mouse is on some object
 	}
 
 	vec3 cameraPos = u_cameraPos;

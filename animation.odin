@@ -3,6 +3,7 @@ package main
 import glm "core:math/linalg/glsl"
 import "core:math/linalg"
 import "core:mem"
+import "core:math"
 
 // Animation :: struct {
 
@@ -48,10 +49,15 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
 
         for timestamp, timestampIndex in channel.timestamps { // get transformation value for the timestamp
             if obj.animation.duration < timestamp {
+                
+                prevTimeStampIndex := math.max(timestampIndex - 1, 0) // note: sometimes animation does not start with "0" seconds
+                //prevTimeStampIndex := timestampIndex > 0 ? timestampIndex - 1 : len(channel.timestamps) - 1 // note: use this one if you want to assume that "first" frame starts from the last timestamp
+
+                //print(obj.animation.duration, timestamp)
                 prevValue: union { float3, float4 }
                 switch _values in channel.values {
-                case []float3: prevValue = channel.values.([]float3)[timestampIndex - 1]
-                case []float4: prevValue = channel.values.([]float4)[timestampIndex - 1]
+                case []float3: prevValue = channel.values.([]float3)[prevTimeStampIndex]
+                case []float4: prevValue = channel.values.([]float4)[prevTimeStampIndex]
                 }
 
                 nextValue: union { float3, float4 }
@@ -61,7 +67,7 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
                 }
 
                 // integrpolate value
-                delta := (obj.animation.duration - channel.timestamps[timestampIndex - 1]) / (channel.timestamps[timestampIndex] - channel.timestamps[timestampIndex - 1])
+                delta := (obj.animation.duration - channel.timestamps[prevTimeStampIndex]) / (channel.timestamps[timestampIndex] - channel.timestamps[prevTimeStampIndex])
                 
                 value: union { float3, quaternion128 }
                 switch channel.transf {

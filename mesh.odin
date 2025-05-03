@@ -62,6 +62,7 @@ loadMeshes :: proc() {
     // meshMesh := "C:/Projects/odin_opengl_template/models/Cute_Demon.glb"
     // meshMesh := "C:/Projects/odin_opengl_template/models/Light_Switch.glb"
     meshMesh := "C:/Projects/odin_opengl_template/models/plane.glb"
+    // meshMesh := "C:/Projects/odin_opengl_template/models/enamy_plane.glb"
     //meshMesh := "C:/Projects/odin_opengl_template/models/what u see.glb"
 
     ctx.meshes[.TEST_MESH] = loadGltfFile(meshMesh)

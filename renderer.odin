@@ -37,6 +37,10 @@ render :: proc() {
     win.SwapBuffers(ctx.hdc)
 }
 
+renderToPickFBO :: proc() {
+    
+}
+
 renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLineWidth: f32 = 0) {
     color := color
     fontTexture := ctx.textures[.FONT].?
@@ -92,7 +96,7 @@ renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotati
 
     gl.UniformMatrix4fv(ctx.shaders[.QUAD].uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
     gl.Uniform1f(ctx.shaders[.QUAD].uniforms["u_time"].location, time)
-    time += 0.030
+    time += 3 * f32(ctx.timeDelta)
 
     gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
 }
@@ -101,10 +105,13 @@ renderMesh :: proc(obj: ^GameObj) {
     mesh := &ctx.meshes[obj.mesh.type]
     assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
 
+    hasMouseHover: i32 = (obj.id == ctx.hoveredObj) ? 1 : 0
+
+    //print(ctx.hoveredObj)
+    gl.UseProgram(ctx.shaders[.MESH].program)
     for node, nodeIndex in mesh.nodes {
         for primitive in node.primitives {
             gl.BindVertexArray(primitive.vao)
-            gl.UseProgram(ctx.shaders[.MESH].program)
 
             // todo: handle non textures
             hasTexture: i32 = 0
@@ -112,7 +119,7 @@ renderMesh :: proc(obj: ^GameObj) {
                 gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
                 hasTexture = 1
             }
-            
+
             color := primitive.color
             uniforms := ctx.shaders[.MESH].uniforms
             transformMat := obj.mesh.nodeTransforms[nodeIndex]
@@ -120,6 +127,7 @@ renderMesh :: proc(obj: ^GameObj) {
             gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
             gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
             gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
+            gl.Uniform1i(uniforms["u_hasMouseHover"].location, hasMouseHover)
             gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
             //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
 
@@ -127,7 +135,32 @@ renderMesh :: proc(obj: ^GameObj) {
         }
     }
 
-    // for &childMesh in mesh.children {
-    //     renderMesh(&childMesh)
-    // }
+    // render to pick fbo
+    {
+        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.pickFBO.fbo)
+        emptyPickVal: i32 = 0
+        gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // 
+        gl.Clear(gl.DEPTH_BUFFER_BIT)
+        gl.UseProgram(ctx.shaders[.PICK].program)
+
+        for node, nodeIndex in mesh.nodes {
+            for primitive in node.primitives {
+                gl.BindVertexArray(primitive.vao)
+
+                uniforms := ctx.shaders[.PICK].uniforms
+                transformMat := ctx.projMat * ctx.viewMat * obj.mesh.nodeTransforms[nodeIndex]
+                gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
+                gl.Uniform1i(uniforms["u_obj_id"].location, obj.id)
+
+                gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
+            }
+        }
+        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
+
+        gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.pickFBO.fbo)
+        mousePos := getMousePos()
+        gl.ReadPixels(mousePos.x, ctx.windowSize.y - mousePos.y - 1, 1, 1, gl.RED_INTEGER, gl.INT, &ctx.hoveredObj)
+        
+        gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+    }
 }

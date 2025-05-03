@@ -16,6 +16,7 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
     switch msg {
     case win.WM_CREATE:
         ctx.hdc = win.GetDC(hwnd)
+
         initOpengl()
     case win.WM_INPUT:
         if !ctx.camera.freeMode { break }
@@ -60,6 +61,7 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
 
         // NOTE: while resizing we only get resize message, so we can't redraw from main loop, so we do it explicitlly
         initProjections()
+        createPickFBO(ctx.windowSize.x, ctx.windowSize.y)
         render()
     case win.WM_DESTROY: win.PostQuitMessage(0)
     }

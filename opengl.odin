@@ -1,18 +1,22 @@
 package main
 
-import gl "vendor:OpenGL"
+import "core:bytes"
+import "core:image"
+import "core:strings"
+import "base:runtime"
+
 import win "core:sys/windows"
 import glm "core:math/linalg/glsl"
-import "core:bytes"
-
-import "core:image"
+import gl "vendor:OpenGL"
+import stb_image "vendor:stb/image"
 
 import "core:image/png" // since png module has autoload function, don't remove it!
+//import "core:image/bmp" // since png module has autoload function, don't remove it!
 _ :: png._MAX_IDAT
 
 initOpengl :: proc() {
     majorVersion :: 4
-    minorVersion :: 4
+    minorVersion :: 5
     multisampleLevel :: 4
 
     {
@@ -117,6 +121,40 @@ initOpengl :: proc() {
     //gl.Enable(gl.TEXTURE_2D)
 }
 
+createPickFBO :: proc(width, height: i32) {
+    if ctx.pickFBO.fbo != 0 {
+        gl.DeleteFramebuffers(1, &ctx.pickFBO.fbo)
+        gl.DeleteTextures(1, &ctx.pickFBO.pickTexture)
+        gl.DeleteTextures(1, &ctx.pickFBO.depthTexture)
+    }
+
+    fbo: u32
+    gl.GenFramebuffers(1, &fbo)
+    gl.BindFramebuffer(gl.FRAMEBUFFER, fbo)
+
+    pickTexture: u32
+    gl.GenTextures(1, &pickTexture)
+    gl.BindTexture(gl.TEXTURE_2D, pickTexture)
+    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.R32I, i32(width), i32(height), 0, gl.RED_INTEGER, gl.INT, nil)
+    gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pickTexture, 0)
+
+    depthTexture: u32
+    gl.GenTextures(1, &depthTexture)
+    gl.BindTexture(gl.TEXTURE_2D, depthTexture)
+    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, i32(width), i32(height), 0, gl.DEPTH_COMPONENT, gl.FLOAT, nil)
+    gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
+
+    drawBuffers := []u32{ gl.COLOR_ATTACHMENT0 }
+    gl.DrawBuffers(1, raw_data(drawBuffers)) 
+
+    assert(gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE)
+
+    gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+    gl.BindTexture(gl.TEXTURE_2D, 0)
+
+    ctx.pickFBO = { fbo, pickTexture, depthTexture }
+}
+
 clearOpengl :: proc() {
     for shader in ctx.shaders {
 		gl.DeleteProgram(shader.program)
@@ -182,6 +220,16 @@ loadShaders :: proc() {
         }
     }
 
+    { // pick
+        program, program_ok := gl.load_shaders_source(#load("./shaders/pick_vs.glsl"), #load("./shaders/pick_fs.glsl"))
+        assert(program_ok)
+
+        ctx.shaders[.PICK] = Shader{
+            program = program,
+            uniforms = gl.get_uniforms_from_program(program),
+        }
+    }
+
     { // test compute shader
         program, program_ok := gl.load_compute_source(#load("./shaders/test_compute.glsl"))
         assert(program_ok)
@@ -200,34 +248,57 @@ loadTextures :: proc() {
 }
 
 loadTextureFromImage :: proc(imageFileContent: []u8) -> (Maybe(Texture), bool) {
-    parsedImage, imageErr := image.load_from_bytes(imageFileContent)
+    _convertImageToTexture :: proc(data: []byte, width, height: int) -> (Maybe(Texture), bool) {
+        texture: u32
+        gl.GenTextures(1, &texture)
 
-    if imageErr != nil {
-        print("Couldn't parse image", imageErr)
-        return nil, false
+        gl.BindTexture(gl.TEXTURE_2D, texture)
+
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+        gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+        gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(data))
+        gl.GenerateMipmap(gl.TEXTURE_2D)
+        
+        gl.BindTexture(gl.TEXTURE_2D, 0)
+
+        return Texture {
+            texture = texture,
+            width = width,
+            height = height,
+        }, true
     }
-    defer image.destroy(parsedImage)
 
-    image.alpha_add_if_missing(parsedImage)
+    { // try default Odin parser first
+        parsedImage, imageErr := image.load_from_bytes(imageFileContent)
 
-    bitmap := bytes.buffer_to_bytes(&parsedImage.pixels)
+        if imageErr == nil {
+            defer image.destroy(parsedImage)
 
-    texture: u32
-    gl.GenTextures(1, &texture)
+            image.alpha_add_if_missing(parsedImage)
 
-    gl.BindTexture(gl.TEXTURE_2D, texture)
+            bitmap := bytes.buffer_to_bytes(&parsedImage.pixels)
 
-    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-    gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+            return _convertImageToTexture(bitmap, parsedImage.width, parsedImage.height)
+        } else {
+            print("Couldn't parse image", imageErr)
+        }
+    }
 
-    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(parsedImage.width), i32(parsedImage.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(bitmap))
-    gl.GenerateMipmap(gl.TEXTURE_2D)
+    { // try stb parser (from JPEG)
+        width, height, channels: i32
+        bitmap := stb_image.load_from_memory(raw_data(imageFileContent), i32(len(imageFileContent)), &width, &height, &channels, 0)
+        defer stb_image.image_free(bitmap)
+
+        if bitmap == nil { 
+            size := width * height *channels
+            data := transmute([]byte)runtime.Raw_Slice{bitmap, int(size)}
     
-    gl.BindTexture(gl.TEXTURE_2D, 0)
+            return _convertImageToTexture(data, int(width), int(height))    
+        } else {
+            print(string(stb_image.failure_reason())) 
+        }
+    }
 
-    return Texture {
-        texture = texture,
-        width = parsedImage.width,
-        height = parsedImage.height,
-    }, true
+    return nil, false
 }

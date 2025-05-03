@@ -5,6 +5,7 @@ import glm "core:math/linalg/glsl"
 import "core:math/linalg"
 
 GameObj :: struct {
+    id: i32,
     pos, scale: float3,
     rot: quaternion128,
     // rot: struct {
@@ -30,6 +31,7 @@ GameObj :: struct {
 initObjs :: proc() {
     scale: f32 = 0.15
     obj: GameObj = { 
+        id = 13,
         pos = { 0, 1, 0.2 },
         scale = { scale, scale, scale },
         rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1), // default, no rotation
@@ -44,8 +46,10 @@ initObjs :: proc() {
 }
 
 updateObjs :: proc() {
+    //ctx.hoveredObj = 0
+
     for &obj in ctx.objs {
-        playAnimationIfAny(&obj)
+        //playAnimationIfAny(&obj)
         //obj.pos.x = t
 
         // example rotation

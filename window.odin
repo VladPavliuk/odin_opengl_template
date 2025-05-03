@@ -108,6 +108,14 @@ handleKeyboard :: proc() {
     }
 }
 
+getMousePos :: proc() -> int2 {
+    pos: win.POINT
+    win.GetCursorPos(&pos)
+
+    win.ScreenToClient(ctx.hwnd, &pos)
+    return { pos.x, pos.y }
+}
+
 // getDpi :: proc() -> float2 {
 //     MONITOR_DEFAULTTONEAREST :: 0x00000002
 
