@@ -43,6 +43,11 @@ winProc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wParam: win.WPARAM, lPa
         case win.VK_ESCAPE: win.DestroyWindow(hwnd)
         case win.VK_F: toggleBorderlessFullscreen()
         case win.VK_G: toggleFreeCameraMode()
+        case win.VK_E: ctx.pressedKeys[.E] = true
+        }
+    case win.WM_KEYUP:
+        switch wParam {
+        case win.VK_E: ctx.pressedKeys[.E] = false
         }
     case win.WM_LBUTTONUP:
     

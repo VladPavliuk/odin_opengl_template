@@ -6,6 +6,10 @@ import "core:c"
 
 L :: intrinsics.constant_utf16_cstring
 
+Key :: enum {
+    E,
+}
+
 initWindow :: proc() {
     win.SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
 

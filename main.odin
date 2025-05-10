@@ -48,6 +48,7 @@ Context :: struct {
 		fbo: u32,
 		pickTexture, depthTexture: u32,
 	},
+	pressedKeys: [Key]bool,
 
 	quad: struct {
 		vbo, vao, ebo: u32,
@@ -72,6 +73,9 @@ Context :: struct {
 
 	objs: [dynamic]GameObj,
 	hoveredObj: i32,
+	distanceToHoveredObj: f32,
+
+	showUseLabel: bool,
 
 	timeDelta: f64,
 	font: FontData,
@@ -83,7 +87,6 @@ tracker: mem.Tracking_Allocator
 
 // todo:
 // sprites
-// ability to select items on screen
 // framebuffer
 // instancing
 // ui
@@ -132,6 +135,8 @@ main :: proc() {
             continue
         }
 
+		ctx.showUseLabel = false
+
 		handleKeyboard()
 		updateObjs()
 
@@ -147,6 +152,7 @@ main :: proc() {
 		// testData2 := transmute([]float2)runtime.Raw_Slice{readData, len(testData)}
 		// gl.UnmapBuffer(gl.SHADER_STORAGE_BUFFER)
 
+		readFromPickFbo()
 		render()
 		ctx.timeDelta = time.duration_seconds(time.tick_diff(beforeFrame, time.tick_now()))
     }

@@ -10,7 +10,10 @@ import "core:math"
 // }
 
 startAnimation :: proc(obj: ^GameObj, animationIndex: i32) {
+    if obj.animation.running { return } // note: no need to run it more then once
+
     obj.animation.running = true
+
     obj.animation.index = animationIndex
     obj.animation.duration = 0
 }
@@ -27,7 +30,7 @@ playAnimationIfAny :: proc(obj: ^GameObj) {
     animation := mesh.animations[obj.animation.index]
 
     if obj.animation.duration > animation.duration {
-        //obj.animation.running = false
+        obj.animation.running = false
 
         obj.animation.duration = 0 // todo: temporary repeat
 

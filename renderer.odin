@@ -33,12 +33,12 @@ render :: proc() {
     }
 
     renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
+
+    if ctx.showUseLabel {
+        renderText("E to use", { f32(ctx.windowSize.x) / 2, f32(ctx.windowSize.y) / 2 })
+    }
     
     win.SwapBuffers(ctx.hdc)
-}
-
-renderToPickFBO :: proc() {
-    
 }
 
 renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLineWidth: f32 = 0) {
@@ -51,7 +51,6 @@ renderText :: proc(text: string, pos: float2, color: float3 = { 0, 0, 0 }, maxLi
 
     gl.UniformMatrix4fv(ctx.shaders[.FONT].uniforms["u_projection"].location, 1, false, &ctx.uiProjMat[0, 0])
     gl.Uniform3fv(ctx.shaders[.FONT].uniforms["u_textColor"].location, 1, raw_data(&color))
-
 
     x: f32 = pos.x
     y: f32 = pos.y + ctx.font.ascent
@@ -105,15 +104,13 @@ renderMesh :: proc(obj: ^GameObj) {
     mesh := &ctx.meshes[obj.mesh.type]
     assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
 
-    hasMouseHover: i32 = (obj.id == ctx.hoveredObj) ? 1 : 0
+    hasHighlight: i32 = (obj.readyToInteract) ? 1 : 0
 
-    //print(ctx.hoveredObj)
     gl.UseProgram(ctx.shaders[.MESH].program)
     for node, nodeIndex in mesh.nodes {
         for primitive in node.primitives {
             gl.BindVertexArray(primitive.vao)
 
-            // todo: handle non textures
             hasTexture: i32 = 0
             if primitive.texture != nil {
                 gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
@@ -127,7 +124,7 @@ renderMesh :: proc(obj: ^GameObj) {
             gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
             gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
             gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
-            gl.Uniform1i(uniforms["u_hasMouseHover"].location, hasMouseHover)
+            gl.Uniform1i(uniforms["u_hasHighlight"].location, hasHighlight)
             gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
             //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
 
@@ -139,7 +136,7 @@ renderMesh :: proc(obj: ^GameObj) {
     {
         gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.pickFBO.fbo)
         emptyPickVal: i32 = 0
-        gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // 
+        gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // COLOR_BUFFER_BIT does not work for int format texture, you should manualy specify default value
         gl.Clear(gl.DEPTH_BUFFER_BIT)
         gl.UseProgram(ctx.shaders[.PICK].program)
 
@@ -155,12 +152,33 @@ renderMesh :: proc(obj: ^GameObj) {
                 gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
             }
         }
-        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
+        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)        
+    }
+}
 
-        gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.pickFBO.fbo)
-        mousePos := getMousePos()
-        gl.ReadPixels(mousePos.x, ctx.windowSize.y - mousePos.y - 1, 1, 1, gl.RED_INTEGER, gl.INT, &ctx.hoveredObj)
-        
-        gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+readFromPickFbo :: proc() {
+    gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.pickFBO.fbo)
+    mousePos := getMousePos()
+    gl.ReadPixels(mousePos.x, ctx.windowSize.y - mousePos.y - 1, 1, 1, gl.RED_INTEGER, gl.INT, &ctx.hoveredObj)
+    
+    depth: f32
+    gl.ReadPixels(mousePos.x, ctx.windowSize.y - mousePos.y - 1, 1, 1, gl.DEPTH_COMPONENT, gl.FLOAT, &depth)
+
+    gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+
+    if depth < 1 { // 1 means cursor points into empty space
+        x_ndc := 2 * f32(mousePos.x) / f32(ctx.windowSize.x) - 1
+        y_ndc := 1 - 2 * f32(mousePos.y) / f32(ctx.windowSize.y)
+        z_ndc := 2 * depth - 1
+        clipCoords: float4 = { x_ndc, y_ndc, z_ndc, 1 }
+
+        invVP := glm.inverse(ctx.projMat * ctx.viewMat)
+        worldCoords := invVP * clipCoords
+        worldCoords /= worldCoords.w
+        surfacePos: float3 = worldCoords.xyz // note: might be useful is we want to figure out exact point in the worlds where user wants to point to
+
+        ctx.distanceToHoveredObj = glm.distance(ctx.camera.pos, surfacePos)
+    } else {
+        ctx.distanceToHoveredObj = 0
     }
 }

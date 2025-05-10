@@ -26,6 +26,9 @@ GameObj :: struct {
             rotation: Maybe(quaternion128),
         },
     },
+
+    canInteract: bool,
+    readyToInteract: bool,
 }
 
 initObjs :: proc() {
@@ -36,11 +39,12 @@ initObjs :: proc() {
         scale = { scale, scale, scale },
         rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1), // default, no rotation
         mesh = { type = .TEST_MESH, nodeTransforms = make([]mat4, len(ctx.meshes[.TEST_MESH].nodes)) },
+        canInteract = true,
     }
     obj.rot = glm.quatAxisAngle({ 0, 0, 1 }, 1.9)
     //obj.mesh.nodeTransforms = make([]mat4, len(mesh.nodes))
     
-    startAnimation(&obj, 0)
+    //startAnimation(&obj, 0)
 
     append(&ctx.objs, obj)
 }
@@ -49,7 +53,21 @@ updateObjs :: proc() {
     //ctx.hoveredObj = 0
 
     for &obj in ctx.objs {
-        //playAnimationIfAny(&obj)
+        obj.readyToInteract = false
+
+        if obj.canInteract && obj.id == ctx.hoveredObj {
+            if ctx.distanceToHoveredObj < 1 {
+                if ctx.pressedKeys[.E] {
+                    obj.readyToInteract = false
+                    startAnimation(&obj, 0)
+                } else if !obj.animation.running {
+                    obj.readyToInteract = true
+                    ctx.showUseLabel = true
+                }
+            }
+        }
+
+        playAnimationIfAny(&obj)
         //obj.pos.x = t
 
         // example rotation
