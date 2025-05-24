@@ -5,14 +5,21 @@ in vec2 v_texCoord;
 
 out vec4 o_color;
 
+uniform vec4 u_color;
+uniform bool u_hasTexture;
+
 uniform sampler2D ourTexture;
 
 void main() {
-	//o_color = v_color;
-	vec4 texColor = v_color * texture(ourTexture, v_texCoord);
+	if (!u_hasTexture) {
+		o_color = u_color;
+		return;
+	}
+
+	vec4 texColor = texture(ourTexture, v_texCoord);
 
 	if (texColor.a < 0.01)
         discard;
 
-	o_color = texture(ourTexture, v_texCoord);
+	o_color = texColor;
 }

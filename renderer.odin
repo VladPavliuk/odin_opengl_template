@@ -32,6 +32,8 @@ render :: proc() {
         renderMesh(&obj)
     }
 
+    // renderSprite({400,400}, {100,100}, {1,1,1,1}) // sample sprite
+
     renderText(fmt.tprintfln("%i fps", i32(1 / ctx.timeDelta)), { 0, 0 }, { 0, 0, 0 })
 
     if ctx.showUseLabel {
@@ -94,8 +96,38 @@ renderQuad :: proc(position: float3, scale: float2, texture: TextureType, rotati
     u_transform := ctx.projMat * ctx.viewMat * model
 
     gl.UniformMatrix4fv(ctx.shaders[.QUAD].uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
-    gl.Uniform1f(ctx.shaders[.QUAD].uniforms["u_time"].location, time)
+    
+    u_hasTexture: i32 = 1
+    gl.Uniform1i(ctx.shaders[.QUAD].uniforms["u_hasTexture"].location, u_hasTexture)
+    //gl.Uniform1f(ctx.shaders[.QUAD].uniforms["u_time"].location, time)
     time += 3 * f32(ctx.timeDelta)
+
+    gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
+}
+
+// renders in screen space
+renderSprite :: proc(pos: float2, scale: float2, color: float4 = { 0, 0, 0, 0 }, texture: Maybe(TextureType) = nil, rotationAngle: f32 = 1) {
+    gl.BindVertexArray(ctx.quad.vao)
+    gl.UseProgram(ctx.shaders[.QUAD].program)
+
+    modelTransf := glm.mat4Translate({ pos.x, pos.y, 0 }) * glm.mat4Rotate({ 0, 0, 1 }, rotationAngle) * glm.mat4Scale({ scale.x, scale.y, 1 })
+
+    u_transform := ctx.uiProjMat * modelTransf
+
+    gl.UniformMatrix4fv(ctx.shaders[.QUAD].uniforms["u_transform"].location, 1, false, &u_transform[0, 0])
+
+    u_hasTexture: i32 = 0
+    if texture != nil {
+        u_hasTexture = 1
+
+        if ctx.textures[texture.?] == nil { panic(fmt.tprintf("%i texture is not set", texture)) }
+        gl.BindTexture(gl.TEXTURE_2D, ctx.textures[texture.?].?.texture)
+    } else {
+        color := color
+        gl.Uniform4fv(ctx.shaders[.QUAD].uniforms["u_color"].location, 1, raw_data(&color))
+    }
+    
+    gl.Uniform1i(ctx.shaders[.QUAD].uniforms["u_hasTexture"].location, u_hasTexture)
 
     gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
 }

@@ -86,7 +86,6 @@ ctx: Context = {}
 tracker: mem.Tracking_Allocator
 
 // todo:
-// sprites
 // framebuffer
 // instancing
 // ui
