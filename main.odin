@@ -69,9 +69,13 @@ Context :: struct {
 		pitch: f32,
 		front: float3,
 	},
+	
 	uiProjMat, projMat, viewMat: mat4,
 
+	lightsUBO: u32,
+
 	objs: [dynamic]GameObj,
+	objIdCounter: i32,
 	hoveredObj: i32,
 	distanceToHoveredObj: f32,
 
@@ -86,10 +90,10 @@ ctx: Context = {}
 tracker: mem.Tracking_Allocator
 
 // todo:
+// lighting
 // framebuffer
 // instancing
 // ui
-// lighting
 // sound
 // pbr
 main :: proc() {
@@ -122,6 +126,7 @@ main :: proc() {
 		{2,2},
 	}
 	ctx.testSSBO = createSSBO(testData)
+	ctx.lightsUBO = createSSBO(float3, 10)
 
     msg: win.MSG
     for msg.message != win.WM_QUIT {

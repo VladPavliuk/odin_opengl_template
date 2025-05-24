@@ -179,12 +179,52 @@ clearOpengl :: proc() {
 	win.ReleaseDC(ctx.hwnd, ctx.hdc)
 }
 
-createSSBO :: proc(data: []$T) -> u32 {
+createSSBO :: proc{createSSBO_reserved, createSSBO_with_data}
+
+createSSBO_reserved :: proc(type: typeid, reserve: int) -> u32 {
+    buffer: u32
+    gl.GenBuffers(1, &buffer)
+    gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, buffer)
+    gl.BufferData(gl.SHADER_STORAGE_BUFFER, size_of(type) * reserve, nil, gl.DYNAMIC_COPY)
+    gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0)
+
+    return buffer
+}
+
+createSSBO_with_data :: proc(data: []$T) -> u32 {
     buffer: u32
     gl.GenBuffers(1, &buffer)
     gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, buffer)
     gl.BufferData(gl.SHADER_STORAGE_BUFFER, size_of(T) * len(data), raw_data(data), gl.DYNAMIC_COPY)
     gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0)
+
+    return buffer
+}
+
+createUBO :: proc{createUBO_reserved, createUBO_with_data}
+
+createUBO_reserved :: proc(type: typeid, reserve: int) -> u32 {
+    assert(reserve != 0)
+    buffer: u32
+    gl.GenBuffers(1, &buffer)
+    gl.BindBuffer(gl.UNIFORM_BUFFER, buffer)
+    gl.BufferData(gl.UNIFORM_BUFFER, size_of(type) * reserve, nil, gl.DYNAMIC_COPY)
+    gl.BindBuffer(gl.UNIFORM_BUFFER, 0)
+
+    return buffer
+}
+
+createUBO_with_data :: proc(data: []$T) -> u32 {
+    buffer: u32
+    gl.GenBuffers(1, &buffer)
+    gl.BindBuffer(gl.UNIFORM_BUFFER, buffer)
+    // if data == nil { // no init data
+    //     if reserve <= 0 { panic("No data provided and no reserved count provided for UBO!!") }
+    //     gl.BufferData(gl.UNIFORM_BUFFER, size_of(T) * reserve, nil, gl.DYNAMIC_COPY)
+    // } else {
+        gl.BufferData(gl.UNIFORM_BUFFER, size_of(T) * len(data), raw_data(data), gl.DYNAMIC_COPY)
+    //}
+    gl.BindBuffer(gl.UNIFORM_BUFFER, 0)
 
     return buffer
 }

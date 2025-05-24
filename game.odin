@@ -26,6 +26,7 @@ GameObj :: struct {
             rotation: Maybe(quaternion128),
         },
     },
+    emitsLight: bool,
 
     canInteract: bool,
     readyToInteract: bool,
@@ -33,8 +34,8 @@ GameObj :: struct {
 
 initObjs :: proc() {
     scale: f32 = 0.15
-    obj: GameObj = { 
-        id = 13,
+    obj: GameObj = {
+        id = genNextObjId(),
         pos = { 0, 1, 0.2 },
         scale = { scale, scale, scale },
         rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1), // default, no rotation
@@ -47,27 +48,53 @@ initObjs :: proc() {
     //startAnimation(&obj, 0)
 
     append(&ctx.objs, obj)
+
+    obj2 := createEmptyObj()
+    
+    obj2.emitsLight = true
+    obj2.pos.y = 5
+}
+
+createEmptyObj :: proc() -> ^GameObj {
+    obj: GameObj = {
+        id = genNextObjId(),
+        pos = 0, scale = 1, rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1),
+        mesh = { type = .CUBE, nodeTransforms = make([]mat4, len(ctx.meshes[.CUBE].nodes)) },
+    }
+    append(&ctx.objs, obj)
+
+    return &ctx.objs[len(ctx.objs) - 1]
+}
+
+genNextObjId :: proc() -> i32 {
+    ctx.objIdCounter += 1
+    return ctx.objIdCounter
 }
 
 updateObjs :: proc() {
     //ctx.hoveredObj = 0
 
     for &obj in ctx.objs {
-        obj.readyToInteract = false
+        assert(obj.id != 0, "Object can't have zero ID!!!")
 
-        if obj.canInteract && obj.id == ctx.hoveredObj {
-            if ctx.distanceToHoveredObj < 1 {
-                if ctx.pressedKeys[.E] {
-                    obj.readyToInteract = false
-                    startAnimation(&obj, 0)
-                } else if !obj.animation.running {
-                    obj.readyToInteract = true
-                    ctx.showUseLabel = true
+        { // animation
+            obj.readyToInteract = false
+
+            if obj.canInteract && obj.id == ctx.hoveredObj {
+                if ctx.distanceToHoveredObj < 1 {
+                    if ctx.pressedKeys[.E] {
+                        obj.readyToInteract = false
+                        startAnimation(&obj, 0)
+                    } else if !obj.animation.running {
+                        obj.readyToInteract = true
+                        ctx.showUseLabel = true
+                    }
                 }
             }
-        }
 
-        playAnimationIfAny(&obj)
+            playAnimationIfAny(&obj)
+        }
+        
         //obj.pos.x = t
 
         // example rotation

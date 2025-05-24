@@ -22,15 +22,7 @@ render :: proc() {
 
     h += f32(ctx.timeDelta)
 
-    for &obj in ctx.objs {
-        t := glm.mat4Translate(obj.pos)
-        s := glm.mat4Scale(obj.scale)
-        r := glm.mat4FromQuat(obj.rot)
-
-        applyTransfToGameObj(&obj, t * r * s)
-        
-        renderMesh(&obj)
-    }
+    renderObjects()
 
     // renderSprite({400,400}, {100,100}, {1,1,1,1}) // sample sprite
 
@@ -132,45 +124,72 @@ renderSprite :: proc(pos: float2, scale: float2, color: float4 = { 0, 0, 0, 0 },
     gl.DrawElements(gl.TRIANGLES, i32(ctx.quad.indicesCount), gl.UNSIGNED_INT, nil)
 }
 
-renderMesh :: proc(obj: ^GameObj) {
-    mesh := &ctx.meshes[obj.mesh.type]
-    assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
+renderObjects :: proc() {
+    lightSources := make([dynamic]float3)
+    defer delete(lightSources)
 
-    hasHighlight: i32 = (obj.readyToInteract) ? 1 : 0
+    { // calculate all light sources    
+        for obj in ctx.objs { // select all light sources
+            if obj.emitsLight { append(&lightSources, obj.pos) }
+        }
+        
+        assert(ctx.lightsUBO != 0)
+        gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, ctx.lightsUBO)
+        gl.BufferSubData(gl.SHADER_STORAGE_BUFFER, 0, size_of(float3) * len(lightSources), raw_data(lightSources))
+        gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0)
+    }
 
+    // render to default framebuffer
     gl.UseProgram(ctx.shaders[.MESH].program)
-    for node, nodeIndex in mesh.nodes {
-        for primitive in node.primitives {
-            gl.BindVertexArray(primitive.vao)
+    gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ctx.lightsUBO)
+    
+    for &obj in ctx.objs {
+        t := glm.mat4Translate(obj.pos)
+        s := glm.mat4Scale(obj.scale)
+        r := glm.mat4FromQuat(obj.rot)
 
-            hasTexture: i32 = 0
-            if primitive.texture != nil {
-                gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
-                hasTexture = 1
+        applyTransfToGameObj(&obj, t * r * s)
+        
+        mesh := &ctx.meshes[obj.mesh.type]
+        assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
+
+        hasHighlight: i32 = (obj.readyToInteract) ? 1 : 0
+
+        for node, nodeIndex in mesh.nodes {
+            for primitive in node.primitives {
+                gl.BindVertexArray(primitive.vao)
+
+                hasTexture: i32 = 0
+                if primitive.texture != nil {
+                    gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
+                    hasTexture = 1
+                }
+
+                color := primitive.color
+                uniforms := ctx.shaders[.MESH].uniforms
+                transformMat := obj.mesh.nodeTransforms[nodeIndex]
+                gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
+                gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
+                gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
+                gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
+                gl.Uniform1i(uniforms["u_hasHighlight"].location, hasHighlight)
+                gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
+                gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.camera.pos[0])
+                gl.Uniform1i(uniforms["u_lightsCount"].location, i32(len(lightSources)))
+
+                gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
             }
-
-            color := primitive.color
-            uniforms := ctx.shaders[.MESH].uniforms
-            transformMat := obj.mesh.nodeTransforms[nodeIndex]
-            gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
-            gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
-            gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
-            gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
-            gl.Uniform1i(uniforms["u_hasHighlight"].location, hasHighlight)
-            gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
-            //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
-
-            gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
         }
     }
 
-    // render to pick fbo
-    {
-        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.pickFBO.fbo)
-        emptyPickVal: i32 = 0
-        gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // COLOR_BUFFER_BIT does not work for int format texture, you should manualy specify default value
-        gl.Clear(gl.DEPTH_BUFFER_BIT)
-        gl.UseProgram(ctx.shaders[.PICK].program)
+    // render to pick framebuffer
+    gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.pickFBO.fbo)
+    emptyPickVal: i32 = 0
+    gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // COLOR_BUFFER_BIT does not work for int format texture, you should manualy specify default value
+    gl.Clear(gl.DEPTH_BUFFER_BIT)
+    gl.UseProgram(ctx.shaders[.PICK].program)
+    for &obj in ctx.objs {
+        mesh := &ctx.meshes[obj.mesh.type]
 
         for node, nodeIndex in mesh.nodes {
             for primitive in node.primitives {
@@ -184,9 +203,65 @@ renderMesh :: proc(obj: ^GameObj) {
                 gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
             }
         }
-        gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)        
     }
+    gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)  
 }
+
+// renderMesh :: proc(obj: ^GameObj) {
+//     mesh := &ctx.meshes[obj.mesh.type]
+//     assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
+
+//     hasHighlight: i32 = (obj.readyToInteract) ? 1 : 0
+
+//     gl.UseProgram(ctx.shaders[.MESH].program)
+//     for node, nodeIndex in mesh.nodes {
+//         for primitive in node.primitives {
+//             gl.BindVertexArray(primitive.vao)
+
+//             hasTexture: i32 = 0
+//             if primitive.texture != nil {
+//                 gl.BindTexture(gl.TEXTURE_2D, primitive.texture.?.texture)
+//                 hasTexture = 1
+//             }
+
+//             color := primitive.color
+//             uniforms := ctx.shaders[.MESH].uniforms
+//             transformMat := obj.mesh.nodeTransforms[nodeIndex]
+//             gl.UniformMatrix4fv(uniforms["u_projection"].location, 1, false, &ctx.projMat[0, 0])
+//             gl.UniformMatrix4fv(uniforms["u_view"].location, 1, false, &ctx.viewMat[0, 0])
+//             gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
+//             gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
+//             gl.Uniform1i(uniforms["u_hasHighlight"].location, hasHighlight)
+//             gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
+//             //gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.cameraPos[0])
+
+//             gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
+//         }
+//     }
+
+//     // render to pick fbo
+//     {
+//         gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, ctx.pickFBO.fbo)
+//         emptyPickVal: i32 = 0
+//         gl.ClearBufferiv(gl.COLOR, 0, &emptyPickVal) // COLOR_BUFFER_BIT does not work for int format texture, you should manualy specify default value
+//         gl.Clear(gl.DEPTH_BUFFER_BIT)
+//         gl.UseProgram(ctx.shaders[.PICK].program)
+
+//         for node, nodeIndex in mesh.nodes {
+//             for primitive in node.primitives {
+//                 gl.BindVertexArray(primitive.vao)
+
+//                 uniforms := ctx.shaders[.PICK].uniforms
+//                 transformMat := ctx.projMat * ctx.viewMat * obj.mesh.nodeTransforms[nodeIndex]
+//                 gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
+//                 gl.Uniform1i(uniforms["u_obj_id"].location, obj.id)
+
+//                 gl.DrawElements(gl.TRIANGLES, i32(len(primitive.indices)), gl.UNSIGNED_INT, nil)
+//             }
+//         }
+//         gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)        
+//     }
+// }
 
 readFromPickFbo :: proc() {
     gl.BindFramebuffer(gl.READ_FRAMEBUFFER, ctx.pickFBO.fbo)

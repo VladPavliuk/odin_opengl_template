@@ -6,6 +6,8 @@ import "base:runtime"
 
 MeshType :: enum {
     TEST_MESH,
+    SPHERE,
+    CUBE,
 }
 
 MeshAnimationTransfType :: enum {
@@ -66,6 +68,8 @@ loadMeshes :: proc() {
     //meshMesh := "C:/Projects/odin_opengl_template/models/what u see.glb"
 
     ctx.meshes[.TEST_MESH] = loadGltfFile(meshMesh)
+    ctx.meshes[.SPHERE] = loadGltfFile("../res/sphere.glb")
+    ctx.meshes[.CUBE] = loadGltfFile("../res/cube.glb")
 }
 
 createMesh :: proc(mesh: ^Mesh) {
