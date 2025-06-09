@@ -6,6 +6,7 @@ import "core:math/linalg"
 
 GameObj :: struct {
     id: i32,
+    label: string,
     pos, scale: float3,
     rot: quaternion128,
     // rot: struct {
@@ -36,7 +37,7 @@ initObjs :: proc() {
     scale: f32 = 0.15
     obj: GameObj = {
         id = genNextObjId(),
-        pos = { 0, 1, 0.2 },
+        pos = { 8, 1, 0.2 },
         scale = { scale, scale, scale },
         rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1), // default, no rotation
         mesh = { type = .TEST_MESH, nodeTransforms = make([]mat4, len(ctx.meshes[.TEST_MESH].nodes)) },
@@ -49,17 +50,20 @@ initObjs :: proc() {
 
     append(&ctx.objs, obj)
 
-    obj2 := createEmptyObj()
-    
+    obj2 := createEmptyObj(.SPHERE, "light")
     obj2.emitsLight = true
     obj2.pos.y = 5
+
+    obj3 := createEmptyObj(.CUBE)
+    obj3.pos.x = 0
 }
 
-createEmptyObj :: proc() -> ^GameObj {
+createEmptyObj :: proc(meshType: MeshType, label: string = "") -> ^GameObj {
     obj: GameObj = {
         id = genNextObjId(),
+        label = label,
         pos = 0, scale = 1, rot = quaternion(real = 0, imag = 0, jmag = 0, kmag = 1),
-        mesh = { type = .CUBE, nodeTransforms = make([]mat4, len(ctx.meshes[.CUBE].nodes)) },
+        mesh = { type = meshType, nodeTransforms = make([]mat4, len(ctx.meshes[meshType].nodes)) },
     }
     append(&ctx.objs, obj)
 
@@ -95,6 +99,24 @@ updateObjs :: proc() {
             playAnimationIfAny(&obj)
         }
         
+        { // testing
+            @(static)
+            test :f32 = 0.0
+            test += 0.3 * f32(ctx.timeDelta)
+
+            if obj.label == "light" {
+                // a := f32(math.asin(obj.pos.x / 3.0))
+                // a += 1 * f32(ctx.timeDelta)
+                
+                obj.pos.x = 3.0 * math.sin(test)
+
+                obj.pos.y = 3.0 * math.cos(test)
+                
+
+                //obj.pos.y += f32(1.0 * ctx.timeDelta)
+            }
+        }
+
         //obj.pos.x = t
 
         // example rotation

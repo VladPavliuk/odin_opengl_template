@@ -154,6 +154,7 @@ renderObjects :: proc() {
         assert(len(obj.mesh.nodeTransforms) == len(mesh.nodes))
 
         hasHighlight: i32 = (obj.readyToInteract) ? 1 : 0
+        emitsLight: i32 = (obj.emitsLight) ? 1 : 0
 
         for node, nodeIndex in mesh.nodes {
             for primitive in node.primitives {
@@ -173,6 +174,7 @@ renderObjects :: proc() {
                 gl.UniformMatrix4fv(uniforms["u_transform"].location, 1, false, &transformMat[0, 0])
                 gl.Uniform1i(uniforms["u_hasTexture"].location, hasTexture)
                 gl.Uniform1i(uniforms["u_hasHighlight"].location, hasHighlight)
+                gl.Uniform1i(uniforms["u_emitsLight"].location, emitsLight)
                 gl.Uniform4fv(uniforms["u_color"].location, 1, &color[0])
                 gl.Uniform3fv(uniforms["u_cameraPos"].location, 1, &ctx.camera.pos[0])
                 gl.Uniform1i(uniforms["u_lightsCount"].location, i32(len(lightSources)))
